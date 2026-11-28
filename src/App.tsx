@@ -233,6 +233,7 @@ export default function App() {
     }
     const quickEvents: { key: EventTabKey; title: string; keywords: string }[] = [
       { key: 'hoan-tu', title: 'Hoan Tụ Kim Tiêu', keywords: 'hoan tu kim tieu anh dang bao thi ve' },
+      { key: 'lam-nguyet', title: 'Lãm Nguyệt', keywords: 'lam nguyet thinh yen doan vien nap moc bat gioi' },
       { key: 'kim-tuong', title: 'Quay Kim Tướng', keywords: 'kim tuong ve manh' },
       { key: 'tich-xa', title: 'Quà Tuyên Duyên (Tích Xả)', keywords: 'qua tuyen duyen tich xa thien giac hoan luoi bat ma hoan linh but thien co ban' },
       { key: 'ho-du', title: 'Hồ Du Tân Viên', keywords: 'ho du tan vien hoa dang lien hoa du long' },

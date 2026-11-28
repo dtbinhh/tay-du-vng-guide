@@ -1370,6 +1370,31 @@ export const HOAN_TU_KIM_TIEU_DATA: HoanTuKimTieuConfig = {
   ],
 };
 
+export const LAM_NGUYET_THINH_YEN = [
+  { tier: 'Lục', tickets: 10 },
+  { tier: 'Lam', tickets: 20 },
+  { tier: 'Tím', tickets: 30 },
+  { tier: 'Cam', tickets: 40 },
+  { tier: 'Đỏ', tickets: 50 },
+];
+
+export const LAM_NGUYET_NAP_MOC = [
+  { lb: 100, tickets: 20, uncertain: false },
+  { lb: 300, tickets: 30, uncertain: false },
+  { lb: 600, tickets: 60, uncertain: false },
+  { lb: 1000, tickets: 100, uncertain: false },
+  { lb: 2000, tickets: 130, uncertain: false },
+  { lb: 3000, tickets: 200, uncertain: true },
+];
+
+export const LAM_NGUYET_DOAN_VIEN = [
+  { moc: 5000, tickets: 2 },
+  { moc: 9000, tickets: 4 },
+  { moc: 13000, tickets: 6 },
+  { moc: 17000, tickets: 8 },
+  { moc: 20000, tickets: 10 },
+];
+
 export const KIM_TUONG_RANK_REWARDS = [
   { rank: 'Hạng 1', shards: 160 },
   { rank: 'Hạng 2', shards: 100 },

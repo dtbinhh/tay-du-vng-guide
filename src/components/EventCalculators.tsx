@@ -7,6 +7,9 @@ import {
   HOAN_TU_KIM_TIEU_DATA,
   KIM_TUONG_RANK_REWARDS,
   LAM_LANG_EVENTS,
+  LAM_NGUYET_DOAN_VIEN,
+  LAM_NGUYET_NAP_MOC,
+  LAM_NGUYET_THINH_YEN,
   MANH_HA_HOAN_TRA,
   MANH_HA_SAT_CANH,
   QUA_TUYEN_DUYEN_MILESTONES,
@@ -16,6 +19,7 @@ import type { LightboxImage } from './Lightbox';
 
 export type EventTabKey =
   | 'hoan-tu'
+  | 'lam-nguyet'
   | 'lam-lang'
   | 'kim-tuong'
   | 'doi-quyet'
@@ -52,6 +56,7 @@ const HO_DU_MILESTONES = [
 
 const EVENT_TABS: { id: EventTabKey; label: string }[] = [
   { id: 'hoan-tu', label: 'Hoan Tụ Kim Tiêu' },
+  { id: 'lam-nguyet', label: 'Lãm Nguyệt' },
   { id: 'lam-lang', label: 'Lâm Lang Tiên Các' },
   { id: 'kim-tuong', label: 'Kim Tướng' },
   { id: 'doi-quyet', label: 'Đối Quyết Đỉnh Cao' },
@@ -111,6 +116,26 @@ export function EventCalculators({
       );
     }
   }, [syncedHoanTu]);
+  // Lam Nguyet state
+  const [lnPacks, setLnPacks] = useState<
+    { lb: number; maxQty?: number; tickets: number; qty: number }[]
+  >([
+    { lb: 6, maxQty: 1, tickets: 4, qty: 0 },
+    { lb: 30, maxQty: 2, tickets: 18, qty: 0 },
+    { lb: 98, maxQty: 2, tickets: 50, qty: 0 },
+    { lb: 198, maxQty: 3, tickets: 100, qty: 0 },
+    { lb: 328, maxQty: 3, tickets: 160, qty: 0 },
+    { lb: 648, tickets: 300, qty: 0 },
+  ]);
+  const [lnQuaDoanVienQty, setLnQuaDoanVienQty] = useState(0); // 4 ve / 6 lb, max 4 ngay
+  const [lnNapMocIdx, setLnNapMocIdx] = useState(-1); // -1 = chua dat, 0..5 = 100..3000lb (co che rieng)
+  const LN_EVENT_DAYS = 4;
+  const [lnDailyFree, setLnDailyFree] = useState(true); // 5 ve/ngay
+  const [lnDailyBatGioi, setLnDailyBatGioi] = useState(true); // 10 ve/ngay
+  const [lnDailyQuest, setLnDailyQuest] = useState(true); // 15 ve??/ngay
+  const [lnThinhYenIdx, setLnThinhYenIdx] = useState(-1); // -1 = chua dat, 0..4 = Luc..Do
+  const [lnDoanVienIdx, setLnDoanVienIdx] = useState(-1); // -1 = chua dat, 0..4 = 5000..20000
+
   // Lam Lang state
   const [llSearch, setLlSearch] = useState('');
   const [llEventIdx, setLlEventIdx] = useState(0);
@@ -264,6 +289,58 @@ export function EventCalculators({
     htIncludeTongMon,
     htPacks,
     htConfig,
+  ]);
+
+  const lnTotals = useMemo(() => {
+    const shop = lnPacks.reduce(
+      (acc, p) => ({ lb: acc.lb + p.lb * p.qty, tickets: acc.tickets + p.tickets * p.qty }),
+      { lb: 0, tickets: 0 }
+    );
+    const quaDvLb = lnQuaDoanVienQty * 6;
+    const quaDvTickets = lnQuaDoanVienQty * 4;
+    const totalLb = shop.lb + quaDvLb;
+
+    const napMocTickets =
+      lnNapMocIdx >= 0
+        ? LAM_NGUYET_NAP_MOC.slice(0, lnNapMocIdx + 1).reduce((s, m) => s + m.tickets, 0)
+        : 0;
+    const thinhYenTickets =
+      lnThinhYenIdx >= 0 ? LAM_NGUYET_THINH_YEN[lnThinhYenIdx].tickets : 0;
+    const doanVienTickets =
+      lnDoanVienIdx >= 0
+        ? LAM_NGUYET_DOAN_VIEN.slice(0, lnDoanVienIdx + 1).reduce((s, d) => s + d.tickets, 0)
+        : 0;
+    const dailyTickets =
+      LN_EVENT_DAYS *
+      ((lnDailyFree ? 5 : 0) + (lnDailyBatGioi ? 10 : 0) + (lnDailyQuest ? 15 : 0));
+
+    return {
+      shopLb: shop.lb,
+      shopTickets: shop.tickets,
+      quaDvLb,
+      quaDvTickets,
+      totalLb,
+      napMocTickets,
+      thinhYenTickets,
+      doanVienTickets,
+      dailyTickets,
+      totalTickets:
+        shop.tickets +
+        quaDvTickets +
+        napMocTickets +
+        thinhYenTickets +
+        doanVienTickets +
+        dailyTickets,
+    };
+  }, [
+    lnPacks,
+    lnQuaDoanVienQty,
+    lnNapMocIdx,
+    lnDailyFree,
+    lnDailyBatGioi,
+    lnDailyQuest,
+    lnThinhYenIdx,
+    lnDoanVienIdx,
   ]);
 
   // Computations
@@ -659,6 +736,289 @@ export function EventCalculators({
                   <div className="text-xs text-slate-400">Tổng Vé</div>
                   <div className="text-2xl font-bold text-emerald-400 font-mono">
                     {htTotals.totalTickets.toLocaleString()}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Lam Nguyet */}
+      {selectedEvent === 'lam-nguyet' && (
+        <div className="space-y-6">
+          <div className="rounded-xl border border-amber-500/25 bg-amber-500/8 p-3.5 text-xs text-amber-200 flex items-start gap-2">
+            <Info className="w-4 h-4 shrink-0 mt-0.5" />
+            <span>
+              <strong>Lưu ý:</strong> Các mục có dấu <strong>??</strong> (Nhiệm vụ hàng ngày 15 vé??, Nạp mốc 3000lb 200??) là số liệu tạm thời, chờ sự kiện mở lại sẽ kiểm tra chuẩn xác.
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            {/* Left: Shop + Qua Doan Vien + Nap Moc */}
+            <div className="lg:col-span-7 space-y-5">
+              <div className="rounded-2xl border border-white/10 bg-[#121722]/90 p-4 sm:p-5 space-y-3">
+                <div className="flex items-center justify-between gap-2">
+                  <h2 className="font-semibold text-white">Shop Lãm Nguyệt</h2>
+                  <ResetBtn onClick={() => setLnPacks((prev) => prev.map((p) => ({ ...p, qty: 0 })))} />
+                </div>
+                {lnPacks.map((p, idx) => (
+                  <div
+                    key={p.lb}
+                    className="flex items-center justify-between gap-2 rounded-xl bg-black/30 border border-white/8 px-3.5 py-2.5"
+                  >
+                    <div>
+                      <div className="text-sm font-semibold text-white">Gói {p.lb} Lục Bảo</div>
+                      <div className="text-xs text-slate-400">
+                        {p.tickets} vé / gói •{' '}
+                        {p.maxQty ? `Tối đa ${p.maxQty} gói` : 'Không giới hạn'}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="number"
+                        min={0}
+                        max={p.maxQty}
+                        value={p.qty}
+                        onChange={(e) => {
+                          let v = Math.max(0, Number(e.target.value) || 0);
+                          if (p.maxQty) v = Math.min(v, p.maxQty);
+                          setLnPacks((prev) => prev.map((x, i) => (i === idx ? { ...x, qty: v } : x)));
+                        }}
+                        className="w-18 rounded-lg bg-[#0b0e14] border border-white/15 px-2 py-1 text-center font-mono text-sm text-white"
+                      />
+                      <span className="w-16 text-right font-mono text-xs text-amber-300">
+                        {(p.lb * p.qty).toLocaleString()} lb
+                      </span>
+                      <span className="w-16 text-right font-mono text-xs font-semibold text-emerald-400">
+                        {(p.tickets * p.qty).toLocaleString()} vé
+                      </span>
+                    </div>
+                  </div>
+                ))}
+
+                <div className="flex items-center justify-between rounded-xl bg-amber-500/10 border border-amber-500/25 px-3.5 py-2.5 mt-1">
+                  <span className="text-xs sm:text-sm font-semibold text-amber-200">
+                    Tổng Lục Bảo từ Shop
+                  </span>
+                  <span className="font-mono font-bold text-base text-amber-400">
+                    {lnTotals.shopLb.toLocaleString()} lb
+                  </span>
+                </div>
+              </div>
+
+              {/* Qua doan vien (separate card) */}
+              <div className="rounded-2xl border border-amber-500/25 bg-[#121722]/90 p-4 sm:p-5 space-y-3">
+                <div className="flex items-center justify-between gap-2">
+                  <h2 className="font-semibold text-amber-200 text-sm">Quà Đoàn Viên</h2>
+                  <ResetBtn onClick={() => setLnQuaDoanVienQty(0)} />
+                </div>
+                <div className="flex items-center justify-between gap-2 rounded-xl bg-black/30 border border-white/8 px-3.5 py-2.5">
+                  <div>
+                    <div className="text-sm font-semibold text-white">Gói 6 Lục Bảo</div>
+                    <div className="text-xs text-slate-400">4 vé / ngày • Tối đa 4 ngày</div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="number"
+                      min={0}
+                      max={4}
+                      value={lnQuaDoanVienQty}
+                      onChange={(e) =>
+                        setLnQuaDoanVienQty(Math.min(4, Math.max(0, Number(e.target.value) || 0)))
+                      }
+                      className="w-18 rounded-lg bg-[#0b0e14] border border-white/15 px-2 py-1 text-center font-mono text-sm text-white"
+                    />
+                    <span className="w-16 text-right font-mono text-xs text-amber-300">
+                      {lnTotals.quaDvLb} lb
+                    </span>
+                    <span className="w-16 text-right font-mono text-xs font-semibold text-emerald-400">
+                      {lnTotals.quaDvTickets} vé
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Nap moc (independent mechanic) */}
+              <div className="rounded-2xl border border-white/10 bg-[#121722]/90 overflow-hidden">
+                <div className="px-4 sm:px-5 py-3 border-b border-white/10 bg-white/[0.02] flex flex-wrap justify-between items-center gap-2">
+                  <div>
+                    <h2 className="font-semibold text-white text-sm">Nạp Mốc Lãm Nguyệt (Cơ chế tích nạp riêng)</h2>
+                    <div className="text-[11px] text-slate-400">Nhấn chọn mốc tích nạp đạt được</div>
+                  </div>
+                  <div className="flex items-center gap-2.5">
+                    <span className="text-xs font-mono text-emerald-300 font-semibold">
+                      +{lnTotals.napMocTickets} vé
+                    </span>
+                    <ResetBtn onClick={() => setLnNapMocIdx(-1)} />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 p-3.5">
+                  {LAM_NGUYET_NAP_MOC.map((m, idx) => {
+                    const reached = lnNapMocIdx >= idx;
+                    return (
+                      <button
+                        type="button"
+                        key={m.lb}
+                        onClick={() => setLnNapMocIdx(lnNapMocIdx === idx ? idx - 1 : idx)}
+                        className={`rounded-xl border p-2.5 flex items-center justify-between transition cursor-pointer ${
+                          reached
+                            ? 'bg-emerald-500/15 border-emerald-500/40'
+                            : 'bg-black/30 border-white/8 hover:border-amber-500/35'
+                        }`}
+                      >
+                        <span className="text-xs font-mono text-amber-200">{m.lb} lb</span>
+                        <span className="text-xs font-mono font-bold text-emerald-300">
+                          +{m.tickets}
+                          {m.uncertain ? '??' : ' vé'}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+
+            {/* Right: Free/Daily + Thinh Yen + Doan Vien + Summary */}
+            <div className="lg:col-span-5 space-y-4 self-start">
+              <div className="rounded-2xl border border-white/10 bg-[#121722]/90 p-4 sm:p-5 space-y-3">
+                <div className="flex items-center justify-between gap-2">
+                  <h2 className="font-semibold text-white text-sm">Hoạt Động & Miễn Phí (4 ngày)</h2>
+                  <ResetBtn
+                    onClick={() => {
+                      setLnDailyFree(true);
+                      setLnDailyBatGioi(true);
+                      setLnDailyQuest(true);
+                      setLnThinhYenIdx(-1);
+                      setLnDoanVienIdx(-1);
+                    }}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="flex items-center justify-between rounded-xl bg-black/30 border border-white/8 px-3 py-2 cursor-pointer">
+                    <span className="flex items-center gap-2 text-xs sm:text-sm text-slate-200">
+                      <input
+                        type="checkbox"
+                        checked={lnDailyFree}
+                        onChange={(e) => setLnDailyFree(e.target.checked)}
+                        className="accent-amber-500 w-4 h-4"
+                      />
+                      Free hàng ngày (5 vé/ngày)
+                    </span>
+                    <span className="font-mono text-xs text-emerald-400">
+                      +{lnDailyFree ? LN_EVENT_DAYS * 5 : 0} vé
+                    </span>
+                  </label>
+                  <label className="flex items-center justify-between rounded-xl bg-black/30 border border-white/8 px-3 py-2 cursor-pointer">
+                    <span className="flex items-center gap-2 text-xs sm:text-sm text-slate-200">
+                      <input
+                        type="checkbox"
+                        checked={lnDailyBatGioi}
+                        onChange={(e) => setLnDailyBatGioi(e.target.checked)}
+                        className="accent-amber-500 w-4 h-4"
+                      />
+                      Bát Giới hàng ngày (10 vé/ngày)
+                    </span>
+                    <span className="font-mono text-xs text-emerald-400">
+                      +{lnDailyBatGioi ? LN_EVENT_DAYS * 10 : 0} vé
+                    </span>
+                  </label>
+                  <label className="flex items-center justify-between rounded-xl bg-black/30 border border-white/8 px-3 py-2 cursor-pointer">
+                    <span className="flex items-center gap-2 text-xs sm:text-sm text-slate-200">
+                      <input
+                        type="checkbox"
+                        checked={lnDailyQuest}
+                        onChange={(e) => setLnDailyQuest(e.target.checked)}
+                        className="accent-amber-500 w-4 h-4"
+                      />
+                      Nhiệm vụ hàng ngày (15 vé??/ngày)
+                    </span>
+                    <span className="font-mono text-xs text-emerald-400">
+                      +{lnDailyQuest ? LN_EVENT_DAYS * 15 : 0} vé
+                    </span>
+                  </label>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                  <div>
+                    <label className="block text-xs text-slate-400 mb-1">Thịnh Yến Tông Môn</label>
+                    <select
+                      value={lnThinhYenIdx}
+                      onChange={(e) => setLnThinhYenIdx(Number(e.target.value))}
+                      className="w-full rounded-xl bg-[#0b0e14] border border-white/15 px-3 py-2 text-xs text-white"
+                    >
+                      <option value={-1}>Chưa đạt (0 vé)</option>
+                      {LAM_NGUYET_THINH_YEN.map((t, i) => (
+                        <option key={t.tier} value={i}>
+                          Đạt mốc {t.tier} (+{t.tickets} vé)
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs text-slate-400 mb-1">Đoàn Viên (Free)</label>
+                    <select
+                      value={lnDoanVienIdx}
+                      onChange={(e) => setLnDoanVienIdx(Number(e.target.value))}
+                      className="w-full rounded-xl bg-[#0b0e14] border border-white/15 px-3 py-2 text-xs text-white"
+                    >
+                      <option value={-1}>Chưa đạt (0 vé)</option>
+                      {LAM_NGUYET_DOAN_VIEN.map((d, i) => (
+                        <option key={d.moc} value={i}>
+                          Mốc {d.moc.toLocaleString()} (+{d.tickets} vé)
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              {/* Total Summary */}
+              <div className="rounded-2xl border border-amber-500/25 bg-[#121722]/95 p-4 sm:p-5 space-y-3">
+                <h2 className="font-semibold text-amber-300 text-sm">Tổng Kết Lãm Nguyệt</h2>
+                <div className="space-y-1 text-xs text-slate-300">
+                  <div className="flex justify-between">
+                    <span>Shop Lãm Nguyệt:</span>
+                    <span className="font-mono">
+                      <span className="text-amber-300">{lnTotals.shopLb.toLocaleString()} lb</span> •{' '}
+                      <strong className="text-emerald-300">{lnTotals.shopTickets.toLocaleString()} vé</strong>
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Quà Đoàn Viên:</span>
+                    <span className="font-mono">
+                      <span className="text-amber-300">{lnTotals.quaDvLb} lb</span> •{' '}
+                      <strong className="text-emerald-300">{lnTotals.quaDvTickets} vé</strong>
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Nạp mốc:</span>
+                    <strong className="font-mono text-emerald-300">+{lnTotals.napMocTickets} vé</strong>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Thịnh yến + Đoàn viên (Free):</span>
+                    <strong className="font-mono text-emerald-300">
+                      +{lnTotals.thinhYenTickets + lnTotals.doanVienTickets} vé
+                    </strong>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Hàng ngày (4 ngày):</span>
+                    <strong className="font-mono text-emerald-300">+{lnTotals.dailyTickets} vé</strong>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3 pt-1">
+                  <div className="rounded-xl bg-amber-500/12 border border-amber-500/30 p-3 text-center">
+                    <div className="text-xs text-slate-400">Tổng Lục Bảo</div>
+                    <div className="text-2xl font-bold text-amber-400 font-mono">
+                      {lnTotals.totalLb.toLocaleString()}
+                    </div>
+                  </div>
+                  <div className="rounded-xl bg-emerald-500/12 border border-emerald-500/30 p-3 text-center">
+                    <div className="text-xs text-slate-400">Tổng Vé</div>
+                    <div className="text-2xl font-bold text-emerald-400 font-mono">
+                      {lnTotals.totalTickets.toLocaleString()}
+                    </div>
                   </div>
                 </div>
               </div>
