@@ -35,6 +35,21 @@ interface EventCalculatorsProps {
   syncedHoanTu?: HoanTuKimTieuConfig;
 }
 
+const HO_DU_MILESTONES = [
+  { moc: 200, qua: '5 Hoa đăng', d: 25 },
+  { moc: 500, qua: '5 Liên hoa', d: 50 },
+  { moc: 900, qua: '5 Liên hoa', d: 50 },
+  { moc: 1400, qua: '5 Uyên ương', d: 75 },
+  { moc: 1900, qua: '5 Uyên ương', d: 75 },
+  { moc: 2500, qua: '5 Lý ảnh', d: 100 },
+  { moc: 3100, qua: '5 Lý ảnh', d: 100 },
+  { moc: 3900, qua: '5 Du long', d: 200 },
+  { moc: 4700, qua: '5 Du long', d: 200 },
+  { moc: 5500, qua: '5 Du long', d: 200 },
+  { moc: 6300, qua: '5 Du long', d: 200 },
+  { moc: 7100, qua: '5 Du long', d: 200 },
+];
+
 const EVENT_TABS: { id: EventTabKey; label: string }[] = [
   { id: 'hoan-tu', label: 'Hoan Tụ Kim Tiêu' },
   { id: 'lam-lang', label: 'Lâm Lang Tiên Các' },
@@ -143,11 +158,15 @@ export function EventCalculators({
     { name: 'Lý ảnh (Cá)', pts: 20, qty: 0 },
     { name: 'Du long (Long)', pts: 40, qty: 0 },
   ]);
-  const [hoDuPacks, setHoDuPacks] = useState([
-    { label: 'Gói 6 lb (3 Cá)', perPack: 3, qty: 0, lb: 6, ptsEach: 20 },
-    { label: 'Gói 30 lb (9 Cá)', perPack: 9, qty: 0, lb: 30, ptsEach: 20 },
-    { label: 'Gói 98 lb (15 Cá)', perPack: 15, qty: 0, lb: 98, ptsEach: 20 },
-    { label: 'Gói 198 lb (15 Long)', perPack: 15, qty: 0, lb: 198, ptsEach: 40 },
+  const [hoDuPacks, setHoDuPacks] = useState<
+    { label: string; perPack: number; maxQty?: number; qty: number; lb: number; ptsEach: number }[]
+  >([
+    { label: 'Gói 6 lb (3 Lý ảnh)', perPack: 3, maxQty: 1, qty: 0, lb: 6, ptsEach: 20 },
+    { label: 'Gói 30 lb (9 Lý ảnh)', perPack: 9, maxQty: 2, qty: 0, lb: 30, ptsEach: 20 },
+    { label: 'Gói 98 lb (15 Lý ảnh)', perPack: 15, maxQty: 2, qty: 0, lb: 98, ptsEach: 20 },
+    { label: 'Gói 198 lb (15 Du long)', perPack: 15, maxQty: 3, qty: 0, lb: 198, ptsEach: 40 },
+    { label: 'Gói 328 lb (25 Du long)', perPack: 25, maxQty: 3, qty: 0, lb: 328, ptsEach: 40 },
+    { label: 'Gói 648 lb (35 Du long)', perPack: 35, qty: 0, lb: 648, ptsEach: 40 },
   ]);
 
   // Manh Ha Hoan Ca state
@@ -331,6 +350,24 @@ export function EventCalculators({
 
   const tichXaTotal = useMemo(() => tichXa.reduce((s, item) => s + item.pts * item.cur, 0), [tichXa]);
   const hoDuItemTotal = useMemo(() => hoDuItems.reduce((s, i) => s + i.pts * i.qty, 0), [hoDuItems]);
+  const hoDuWithMilestones = useMemo(() => {
+    let total = hoDuItemTotal;
+    let bonus = 0;
+    const claimed = new Set<number>();
+    let changed = true;
+    while (changed) {
+      changed = false;
+      for (const m of HO_DU_MILESTONES) {
+        if (!claimed.has(m.moc) && total >= m.moc) {
+          claimed.add(m.moc);
+          bonus += m.d;
+          total += m.d;
+          changed = true;
+        }
+      }
+    }
+    return { bonus, total, claimed };
+  }, [hoDuItemTotal]);
   const hoDuPackSummary = useMemo(
     () =>
       hoDuPacks.reduce(
@@ -1318,6 +1355,20 @@ export function EventCalculators({
                   </div>
                 </div>
               ))}
+              <div className="grid grid-cols-2 gap-3 pt-1">
+                <div className="rounded-xl bg-black/35 border border-white/10 p-3 text-center">
+                  <div className="text-[11px] text-slate-400">Điểm thưởng mốc quà</div>
+                  <div className="text-xl font-bold text-sky-400 font-mono">
+                    +{hoDuWithMilestones.bonus.toLocaleString()}đ
+                  </div>
+                </div>
+                <div className="rounded-xl bg-emerald-500/12 border border-emerald-500/30 p-3 text-center">
+                  <div className="text-[11px] text-slate-300">Tổng điểm khi đủ mốc</div>
+                  <div className="text-xl font-bold text-emerald-400 font-mono">
+                    {hoDuWithMilestones.total.toLocaleString()}đ
+                  </div>
+                </div>
+              </div>
               <div className="rounded-xl bg-amber-500/10 border border-amber-500/25 p-3 text-xs text-amber-200 space-y-1">
                 <div>• Tích đủ <strong>2,625</strong> xả mở Shop 2 (nhận +375đ mốc quà → 3,000)</div>
                 <div>• Tích đủ <strong>3,825</strong> xả mở Shop 3 (nhận +675đ mốc quà → 4,500)</div>
@@ -1329,7 +1380,7 @@ export function EventCalculators({
               <div className="flex justify-between items-center gap-2">
                 <div>
                   <h2 className="font-semibold text-white">Tính Gói Lục Bảo</h2>
-                  <span className="text-xs text-slate-400">Cá = 20đ | Long = 40đ</span>
+                  <span className="text-xs text-slate-400">Lý ảnh = 20đ | Du long = 40đ</span>
                 </div>
                 <ResetBtn onClick={() => setHoDuPacks((prev) => prev.map((p) => ({ ...p, qty: 0 })))} />
               </div>
@@ -1338,14 +1389,21 @@ export function EventCalculators({
                   key={p.label}
                   className="flex items-center justify-between gap-2 rounded-xl bg-black/30 border border-white/8 px-3 py-2"
                 >
-                  <span className="text-xs sm:text-sm text-slate-200">{p.label}</span>
+                  <div>
+                    <div className="text-xs sm:text-sm text-slate-200 font-medium">{p.label}</div>
+                    <div className="text-[11px] text-slate-400">
+                      {p.maxQty ? `Tối đa ${p.maxQty} gói` : 'Không giới hạn'}
+                    </div>
+                  </div>
                   <div className="flex items-center gap-2">
                     <input
                       type="number"
                       min={0}
+                      max={p.maxQty}
                       value={p.qty}
                       onChange={(e) => {
-                        const v = Math.max(0, Number(e.target.value) || 0);
+                        let v = Math.max(0, Number(e.target.value) || 0);
+                        if (p.maxQty) v = Math.min(v, p.maxQty);
                         setHoDuPacks((prev) => prev.map((x, i) => (i === idx ? { ...x, qty: v } : x)));
                       }}
                       className="w-16 rounded-lg bg-[#0b0e14] border border-white/15 px-2 py-1 text-center font-mono text-sm text-white"
@@ -1385,23 +1443,10 @@ export function EventCalculators({
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/6">
-                {[
-                  { moc: 200, qua: '5 Hoa đăng', d: 25 },
-                  { moc: 500, qua: '5 Liên hoa', d: 50 },
-                  { moc: 900, qua: '5 Liên hoa', d: 50 },
-                  { moc: 1400, qua: '5 Uyên ương', d: 75 },
-                  { moc: 1900, qua: '5 Uyên ương', d: 75 },
-                  { moc: 2500, qua: '5 Lý ảnh', d: 100 },
-                  { moc: 3100, qua: '5 Lý ảnh', d: 100 },
-                  { moc: 3900, qua: '5 Du long', d: 200 },
-                  { moc: 4700, qua: '5 Du long', d: 200 },
-                  { moc: 5500, qua: '5 Du long', d: 200 },
-                  { moc: 6300, qua: '5 Du long', d: 200 },
-                  { moc: 7100, qua: '5 Du long', d: 200 },
-                ].map((r) => (
+                {HO_DU_MILESTONES.map((r) => (
                   <tr
                     key={r.moc}
-                    className={hoDuItemTotal >= r.moc ? 'bg-emerald-500/8' : 'hover:bg-white/[0.02]'}
+                    className={hoDuWithMilestones.claimed.has(r.moc) ? 'bg-emerald-500/10' : 'hover:bg-white/[0.02]'}
                   >
                     <td className="py-2 px-4 font-mono font-semibold text-amber-200">{r.moc.toLocaleString()}</td>
                     <td className="py-2 px-3 text-slate-200">{r.qua}</td>
