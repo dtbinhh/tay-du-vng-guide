@@ -9,7 +9,7 @@
  * - Validate định dạng ngày YYYY-MM-DD, end >= start, khoảng thời gian <= 90 ngày, và chặn ghi trùng ngày.
  */
 
-const ADMIN_PIN = '123456'; // <-- ĐỔI THÀNH MÃ PIN BÍ MẬT CỦA BẠN
+const ADMIN_PIN = 'S209'; // <-- ĐỔI THÀNH MÃ PIN BÍ MẬT CỦA BẠN
 const GET_CACHE_SECONDS = 300; // Cache 5 phút cho các đợt đồng bộ tự động mỗi 2h
 const POST_COOLDOWN_SECONDS = 10;
 const MAX_PIN_FAILS = 5;

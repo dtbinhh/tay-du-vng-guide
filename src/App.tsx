@@ -40,6 +40,8 @@ const NAV_ITEMS: { id: TabId; label: string; shortLabel: string; icon: typeof Ca
   { id: 'calculators', label: 'Tổng Hợp Sự Kiện', shortLabel: 'Sự Kiện', icon: Calculator },
 ];
 
+const ADMIN_PIN = 'S209';
+
 export default function App() {
   const [activeTab, setActiveTab] = useState<TabId>('events');
   const [selectedResource, setSelectedResource] = useState<ResourceTabKey>('tuong');
@@ -268,6 +270,11 @@ export default function App() {
     const cleanPin = pinInput.trim();
     if (!cleanPin) {
       setSyncError('Vui lòng nhập mã PIN để thực hiện đồng bộ.');
+      return;
+    }
+    if (cleanPin !== ADMIN_PIN) {
+      setSyncError('Sai mã PIN! Vui lòng nhập lại.');
+      setPinInput('');
       return;
     }
     saveAdminPin(cleanPin);
