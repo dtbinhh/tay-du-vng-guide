@@ -100,9 +100,15 @@ export function EventCalculators({
   const [llSearch, setLlSearch] = useState('');
   const [llEventIdx, setLlEventIdx] = useState(0);
 
-  // Doi Quyet state
+  // Doi Quyet state (30 days = 15 rounds of 2 days, 15 matches/day)
   const [dqCurrentPts, setDqCurrentPts] = useState(0);
-  const [dqTargetIdx, setDqTargetIdx] = useState(DOI_QUYET_RANKS.length - 1);
+  const [dqCurrentRound, setDqCurrentRound] = useState(1);
+  const [dqStartRankIdx, setDqStartRankIdx] = useState(0);
+  const [dqMatchesPerDay, setDqMatchesPerDay] = useState(15);
+  const [dqWinRate, setDqWinRate] = useState(50);
+  const [dqRoundActions, setDqRoundActions] = useState<('up' | 'stay' | 'down')[]>(() =>
+    Array.from({ length: 15 }, (_, i) => (i < 12 ? 'up' : 'stay'))
+  );
 
   // Kim Tuong state
   const [kimFree, setKimFree] = useState(true);
@@ -242,11 +248,72 @@ export function EventCalculators({
     );
   }, [activeLL, llSearch]);
 
-  const dqCalc = useMemo(() => {
-    const targetPts = DOI_QUYET_RANKS.slice(0, dqTargetIdx + 1).reduce((s, r) => s + r.points, 0);
-    const need = Math.max(0, targetPts - dqCurrentPts);
-    return { targetPts, need, winsNeeded: Math.ceil(need / 20), losesNeeded: Math.ceil(need / 15) };
-  }, [dqCurrentPts, dqTargetIdx]);
+  const dqSim = useMemo(() => {
+    const maxIdx = DOI_QUYET_RANKS.length - 1;
+    let curIdx = dqStartRankIdx;
+    // Mark current rank and all lower ranks as already claimed
+    const claimedRanks = new Set<number>();
+    for (let k = 0; k <= dqStartRankIdx; k++) claimedRanks.add(k);
+
+    // Only include initial Lục 1 bonus if starting fresh at Round 1 with 0 points
+    let totalRankBonus = dqCurrentRound === 1 && dqStartRankIdx === 0 && dqCurrentPts === 0
+      ? DOI_QUYET_RANKS[0].points
+      : 0;
+    let totalRoundEnd = 0;
+    let peakIdx = dqStartRankIdx;
+
+    const startRoundIdx = Math.max(0, Math.min(14, dqCurrentRound - 1));
+    const remainingRoundCount = 15 - startRoundIdx;
+    const rounds = dqRoundActions.slice(startRoundIdx).map((action, offset) => {
+      const roundNum = startRoundIdx + offset + 1;
+      const startIdx = curIdx;
+      const roundEndPts = DOI_QUYET_RANKS[startIdx].seasonReward;
+      totalRoundEnd += roundEndPts;
+
+      let nextIdx = startIdx;
+      if (action === 'up') nextIdx = Math.min(maxIdx, startIdx + 1);
+      else if (action === 'down') nextIdx = Math.max(0, startIdx - 1);
+
+      let rankUpPts = 0;
+      if (action === 'up' && nextIdx > startIdx && !claimedRanks.has(nextIdx)) {
+        claimedRanks.add(nextIdx);
+        rankUpPts = DOI_QUYET_RANKS[nextIdx].points;
+        totalRankBonus += rankUpPts;
+      }
+
+      if (nextIdx > peakIdx) peakIdx = nextIdx;
+      curIdx = nextIdx;
+
+      return {
+        round: roundNum,
+        actionIdx: startRoundIdx + offset,
+        action,
+        fromRank: DOI_QUYET_RANKS[startIdx].rank,
+        toRank: DOI_QUYET_RANKS[nextIdx].rank,
+        roundEndPts,
+        rankUpPts,
+      };
+    });
+
+    const remainingDays = remainingRoundCount * 2;
+    const totalMatches = dqMatchesPerDay * remainingDays;
+    const avgPtsPerMatch = (20 * dqWinRate + 15 * (100 - dqWinRate)) / 100;
+    const totalMatchPts = Math.round(totalMatches * avgPtsPerMatch);
+
+    return {
+      rounds,
+      remainingRoundCount,
+      remainingDays,
+      claimedRanks,
+      peakRank: DOI_QUYET_RANKS[peakIdx].rank,
+      finalRank: DOI_QUYET_RANKS[curIdx].rank,
+      totalMatches,
+      totalMatchPts,
+      totalRankBonus,
+      totalRoundEnd,
+      grandTotal: dqCurrentPts + totalMatchPts + totalRankBonus + totalRoundEnd,
+    };
+  }, [dqCurrentPts, dqCurrentRound, dqStartRankIdx, dqMatchesPerDay, dqWinRate, dqRoundActions]);
 
   const kimTotals = useMemo(() => {
     const packTotals = kimPacks.reduce(
@@ -806,27 +873,289 @@ export function EventCalculators({
 
       {/* Doi Quyet Dinh Cao */}
       {selectedEvent === 'doi-quyet' && (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          <div className="lg:col-span-8 rounded-2xl border border-white/10 bg-[#121722]/90 overflow-hidden">
+        <div className="space-y-6">
+          {/* Rules summary banner */}
+          <div className="rounded-2xl border border-amber-500/25 bg-amber-500/8 p-4 space-y-2">
+            <div className="font-semibold text-amber-300 text-sm flex items-center gap-2">
+              <Info className="w-4 h-4 shrink-0" />
+              Cơ chế Đối Quyết Đỉnh Cao (30 ngày = 15 đợt)
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 text-xs text-slate-200">
+              <div className="rounded-xl bg-black/30 px-3 py-2">
+                <span className="text-slate-400">Thời gian:</span>{' '}
+                <strong>30 ngày</strong> (2 ngày/đợt = <strong>15 đợt</strong>)
+              </div>
+              <div className="rounded-xl bg-black/30 px-3 py-2">
+                <span className="text-slate-400">Lượt đánh:</span>{' '}
+                <strong>15 trận/ngày</strong> (450 trận/mùa)
+              </div>
+              <div className="rounded-xl bg-black/30 px-3 py-2">
+                <span className="text-slate-400">Điểm trận:</span>{' '}
+                <strong className="text-emerald-300">Win +20đ</strong> •{' '}
+                <strong className="text-rose-300">Lose +15đ</strong>
+              </div>
+              <div className="rounded-xl bg-black/30 px-3 py-2">
+                <span className="text-slate-400">Kết thúc đợt:</span> Nhận điểm tổng kết +{' '}
+                <strong className="text-amber-300">Tăng / Giữ / Giảm</strong> rank
+              </div>
+            </div>
+          </div>
+
+          {/* Season Simulator Controls + Summary */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            <div className="lg:col-span-5 rounded-2xl border border-amber-500/25 bg-[#121722]/95 p-4 sm:p-5 space-y-4 self-start">
+              <div className="flex items-center justify-between gap-2">
+                <h2 className="font-semibold text-amber-300 text-sm sm:text-base flex items-center gap-2">
+                  <Calculator className="w-4 h-4" />
+                  Tính Tổng Điểm Mùa (15 Đợt)
+                </h2>
+                <ResetBtn
+                  onClick={() => {
+                    setDqCurrentPts(0);
+                    setDqCurrentRound(1);
+                    setDqStartRankIdx(0);
+                    setDqMatchesPerDay(15);
+                    setDqWinRate(50);
+                    setDqRoundActions(Array.from({ length: 15 }, (_, i) => (i < 12 ? 'up' : 'stay')));
+                  }}
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs text-slate-400 mb-1">Điểm hiện tại</label>
+                  <input
+                    type="number"
+                    min={0}
+                    value={dqCurrentPts}
+                    onChange={(e) => setDqCurrentPts(Math.max(0, Number(e.target.value) || 0))}
+                    className="w-full rounded-xl bg-[#0b0e14] border border-white/15 px-3 py-2 text-sm font-mono text-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-slate-400 mb-1">Rank hiện tại</label>
+                  <select
+                    value={dqStartRankIdx}
+                    onChange={(e) => setDqStartRankIdx(Number(e.target.value))}
+                    className="w-full rounded-xl bg-[#0b0e14] border border-white/15 px-3 py-2 text-sm text-white"
+                  >
+                    {DOI_QUYET_RANKS.map((r, i) => (
+                      <option key={r.rank} value={i}>
+                        {r.rank}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs text-slate-400 mb-1">Đang ở đợt (1 → 15)</label>
+                  <select
+                    value={dqCurrentRound}
+                    onChange={(e) => setDqCurrentRound(Number(e.target.value))}
+                    className="w-full rounded-xl bg-[#0b0e14] border border-white/15 px-3 py-2 text-sm text-white"
+                  >
+                    {Array.from({ length: 15 }, (_, i) => i + 1).map((num) => (
+                      <option key={num} value={num}>
+                        Đợt {num} (còn {16 - num} đợt)
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs text-slate-400 mb-1">Số trận / ngày (tối đa 15)</label>
+                  <input
+                    type="number"
+                    min={0}
+                    max={15}
+                    value={dqMatchesPerDay}
+                    onChange={(e) => setDqMatchesPerDay(Math.min(15, Math.max(0, Number(e.target.value) || 0)))}
+                    className="w-full rounded-xl bg-[#0b0e14] border border-white/15 px-3 py-2 text-sm font-mono text-white"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <div className="flex justify-between text-xs mb-1">
+                  <span className="text-slate-400">Tỷ lệ thắng dự kiến</span>
+                  <strong className="font-mono text-emerald-300">
+                    {dqWinRate}% Win ({dqSim.totalMatches} trận / {dqSim.remainingDays} ngày)
+                  </strong>
+                </div>
+                <input
+                  type="range"
+                  min={0}
+                  max={100}
+                  step={5}
+                  value={dqWinRate}
+                  onChange={(e) => setDqWinRate(Number(e.target.value))}
+                  className="w-full accent-amber-500 cursor-pointer"
+                />
+              </div>
+
+              {/* Quick Presets */}
+              <div className="space-y-1.5">
+                <div className="text-xs text-slate-400">Kịch bản nhanh cho 15 đợt:</div>
+                <div className="flex flex-wrap gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setDqRoundActions(Array.from({ length: 15 }, (_, i) => (i < 12 ? 'up' : 'stay')))
+                    }
+                    className="px-2.5 py-1 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 text-emerald-300 text-xs cursor-pointer"
+                  >
+                    Leo thẳng lên Đỏ
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setDqRoundActions(Array.from({ length: 15 }, (_, i) => (i % 2 === 0 ? 'up' : 'stay')))
+                    }
+                    className="px-2.5 py-1 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-300 text-xs cursor-pointer"
+                  >
+                    Tăng 1 – Giữ 1
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setDqRoundActions(Array.from({ length: 15 }, () => 'stay'))}
+                    className="px-2.5 py-1 rounded-lg bg-white/8 hover:bg-white/15 border border-white/15 text-slate-300 text-xs cursor-pointer"
+                  >
+                    Giữ nguyên rank
+                  </button>
+                </div>
+              </div>
+
+              {/* Totals */}
+              <div className="space-y-2 border-t border-white/10 pt-3 text-xs">
+                <div className="flex justify-between text-slate-300">
+                  <span>Điểm hiện có:</span>
+                  <strong className="font-mono text-white">{dqCurrentPts.toLocaleString()}đ</strong>
+                </div>
+                <div className="flex justify-between text-slate-300">
+                  <span>Rank cao nhất / Cuối mùa:</span>
+                  <strong className="text-amber-300">
+                    {dqSim.peakRank} / {dqSim.finalRank}
+                  </strong>
+                </div>
+                <div className="flex justify-between text-slate-300">
+                  <span>Điểm đánh trận ({dqSim.totalMatches} trận):</span>
+                  <strong className="font-mono text-sky-300">
+                    +{dqSim.totalMatchPts.toLocaleString()}đ
+                  </strong>
+                </div>
+                <div className="flex justify-between text-slate-300">
+                  <span>Điểm thưởng lên Rank mới:</span>
+                  <strong className="font-mono text-amber-300">
+                    +{dqSim.totalRankBonus.toLocaleString()}đ
+                  </strong>
+                </div>
+                <div className="flex justify-between text-slate-300">
+                  <span>Điểm tổng kết ({dqSim.remainingRoundCount} đợt còn lại):</span>
+                  <strong className="font-mono text-emerald-300">
+                    +{dqSim.totalRoundEnd.toLocaleString()}đ
+                  </strong>
+                </div>
+                <div className="rounded-xl bg-amber-500/15 border border-amber-500/35 p-3.5 text-center mt-2">
+                  <div className="text-xs text-amber-200">TỔNG ĐIỂM DỰ KIẾN CẢ MÙA</div>
+                  <div className="text-3xl font-bold text-amber-400 font-mono mt-0.5">
+                    {dqSim.grandTotal.toLocaleString()}đ
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* 15-Round Interactive Table */}
+            <div className="lg:col-span-7 rounded-2xl border border-white/10 bg-[#121722]/90 overflow-hidden">
+              <div className="px-4 sm:px-5 py-3.5 border-b border-white/10 bg-white/[0.02] flex justify-between items-center">
+                <h2 className="font-semibold text-white text-sm sm:text-base">
+                  Lộ Trình Chi Tiết 15 Đợt (2 ngày / đợt)
+                </h2>
+                <span className="text-xs text-slate-400">Chọn kết quả mỗi đợt</span>
+              </div>
+              <div className="overflow-x-auto max-h-[460px] overflow-y-auto">
+                <table className="w-full text-xs sm:text-sm">
+                  <thead className="sticky top-0 bg-[#0d111a] z-10">
+                    <tr className="text-left text-xs text-slate-400 border-b border-white/8">
+                      <th className="py-2.5 px-3">Đợt</th>
+                      <th className="py-2.5 px-2.5">Rank</th>
+                      <th className="py-2.5 px-2.5 text-center">Kết quả đợt</th>
+                      <th className="py-2.5 px-2.5 text-right">Tổng kết</th>
+                      <th className="py-2.5 px-3 text-right">Thưởng rank</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-white/6">
+                    {dqSim.rounds.map((r) => (
+                      <tr key={r.round} className="hover:bg-white/[0.02]">
+                        <td className="py-2 px-3 font-mono text-slate-400 whitespace-nowrap">
+                          Đợt {r.round}
+                        </td>
+                        <td className="py-2 px-2.5 whitespace-nowrap">
+                          <span className="font-semibold text-amber-200">{r.fromRank}</span>
+                          {r.toRank !== r.fromRank && (
+                            <span className="text-slate-400 text-xs"> → {r.toRank}</span>
+                          )}
+                        </td>
+                        <td className="py-2 px-2.5">
+                          <div className="flex justify-center gap-1">
+                            {(
+                              [
+                                { k: 'up', label: '▲ Tăng', cls: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40' },
+                                { k: 'stay', label: '● Giữ', cls: 'bg-sky-500/20 text-sky-300 border-sky-500/40' },
+                                { k: 'down', label: '▼ Giảm', cls: 'bg-rose-500/20 text-rose-300 border-rose-500/40' },
+                              ] as const
+                            ).map((opt) => (
+                              <button
+                                key={opt.k}
+                                type="button"
+                                onClick={() =>
+                                  setDqRoundActions((prev) =>
+                                    prev.map((a, i) => (i === r.actionIdx ? opt.k : a))
+                                  )
+                                }
+                                className={`px-2 py-0.5 rounded border text-[11px] font-medium transition cursor-pointer ${
+                                  r.action === opt.k
+                                    ? opt.cls
+                                    : 'bg-black/25 border-white/10 text-slate-500 hover:text-slate-300'
+                                }`}
+                              >
+                                {opt.label}
+                              </button>
+                            ))}
+                          </div>
+                        </td>
+                        <td className="py-2 px-2.5 text-right font-mono text-emerald-300">
+                          +{r.roundEndPts}
+                        </td>
+                        <td className="py-2 px-3 text-right font-mono text-amber-300">
+                          {r.rankUpPts > 0 ? `+${r.rankUpPts.toLocaleString()}` : '—'}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          {/* Full 13-Rank Reference Table */}
+          <div className="rounded-2xl border border-white/10 bg-[#121722]/90 overflow-hidden">
             <div className="px-4 sm:px-5 py-3.5 border-b border-white/10 bg-white/[0.02] flex justify-between items-center">
-              <h2 className="font-semibold text-white">Bảng Thưởng Rank Đối Quyết Đỉnh Cao</h2>
-              <span className="text-xs text-amber-300 font-semibold">Tổng điểm: 15,700</span>
+              <h2 className="font-semibold text-white">Bảng Tra Cứu 13 Bậc Rank</h2>
+              <span className="text-xs text-amber-300 font-semibold">Tổng điểm thưởng rank: 15,700</span>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="text-left text-xs text-slate-400 border-b border-white/8 bg-black/25">
                     <th className="py-2.5 px-4">Rank</th>
-                    <th className="py-2.5 px-3">Thưởng rank</th>
-                    <th className="py-2.5 px-3 text-right">Điểm mốc</th>
-                    <th className="py-2.5 px-4 text-right">Thưởng tổng kết</th>
+                    <th className="py-2.5 px-3">Quà thưởng rank</th>
+                    <th className="py-2.5 px-3 text-right">Điểm thưởng rank</th>
+                    <th className="py-2.5 px-4 text-right">Thưởng tổng kết đợt</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/6">
                   {DOI_QUYET_RANKS.map((r, i) => (
                     <tr
                       key={r.rank}
-                      className={i === dqTargetIdx ? 'bg-amber-500/10' : 'hover:bg-white/[0.02]'}
+                      className={dqSim.claimedRanks.has(i) ? 'bg-emerald-500/[0.07]' : 'hover:bg-white/[0.02]'}
                     >
                       <td className="py-2.5 px-4 font-semibold text-amber-200">{r.rank}</td>
                       <td className="py-2.5 px-3 text-slate-200">{r.rankReward}</td>
@@ -840,68 +1169,6 @@ export function EventCalculators({
                   ))}
                 </tbody>
               </table>
-            </div>
-          </div>
-
-          <div className="lg:col-span-4 rounded-2xl border border-amber-500/25 bg-[#121722]/95 p-5 space-y-4 self-start">
-            <div className="flex items-center justify-between gap-2">
-              <h3 className="font-semibold text-amber-300 text-sm">Tính Số Trận Lên Rank</h3>
-              <ResetBtn
-                onClick={() => {
-                  setDqCurrentPts(0);
-                  setDqTargetIdx(DOI_QUYET_RANKS.length - 1);
-                }}
-              />
-            </div>
-            <div className="flex gap-2 text-xs">
-              <span className="px-2.5 py-1 rounded-lg bg-emerald-500/15 text-emerald-300">Win: +20đ</span>
-              <span className="px-2.5 py-1 rounded-lg bg-rose-500/15 text-rose-300">Lose: +15đ</span>
-            </div>
-            <div className="space-y-3">
-              <div>
-                <label className="block text-xs text-slate-400 mb-1">Điểm hiện tại</label>
-                <input
-                  type="number"
-                  min={0}
-                  value={dqCurrentPts}
-                  onChange={(e) => setDqCurrentPts(Math.max(0, Number(e.target.value) || 0))}
-                  className="w-full rounded-xl bg-[#0b0e14] border border-white/15 px-3 py-2 text-sm font-mono text-white"
-                />
-              </div>
-              <div>
-                <label className="block text-xs text-slate-400 mb-1">Rank mục tiêu</label>
-                <select
-                  value={dqTargetIdx}
-                  onChange={(e) => setDqTargetIdx(Number(e.target.value))}
-                  className="w-full rounded-xl bg-[#0b0e14] border border-white/15 px-3 py-2 text-sm text-white"
-                >
-                  {DOI_QUYET_RANKS.map((r, i) => (
-                    <option key={r.rank} value={i}>
-                      {r.rank}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-            <div className="space-y-2 pt-1">
-              <div className="flex justify-between text-xs text-slate-300">
-                <span>Tổng điểm mốc cần:</span>
-                <strong className="font-mono text-white">{dqCalc.targetPts.toLocaleString()}đ</strong>
-              </div>
-              <div className="flex justify-between text-xs text-slate-300">
-                <span>Còn thiếu:</span>
-                <strong className="font-mono text-amber-300">{dqCalc.need.toLocaleString()}đ</strong>
-              </div>
-              <div className="grid grid-cols-2 gap-2.5 pt-2">
-                <div className="rounded-xl bg-emerald-500/10 border border-emerald-500/25 p-3 text-center">
-                  <div className="text-[11px] text-slate-400">Nếu toàn Win</div>
-                  <div className="text-xl font-bold text-emerald-400 font-mono">{dqCalc.winsNeeded} trận</div>
-                </div>
-                <div className="rounded-xl bg-rose-500/10 border border-rose-500/25 p-3 text-center">
-                  <div className="text-[11px] text-slate-400">Nếu toàn Lose</div>
-                  <div className="text-xl font-bold text-rose-400 font-mono">{dqCalc.losesNeeded} trận</div>
-                </div>
-              </div>
             </div>
           </div>
         </div>
