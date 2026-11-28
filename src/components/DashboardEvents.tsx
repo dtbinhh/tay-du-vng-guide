@@ -198,7 +198,7 @@ export function DashboardEvents({
                     ? 'Đang đồng bộ...'
                     : syncCooldownSec > 0
                     ? `Đợi ${syncCooldownSec}s`
-                    : 'Đồng bộ Sheet'}
+                    : 'Đồng bộ dữ liệu'}
                 </span>
               </button>
             ) : (
@@ -207,7 +207,7 @@ export function DashboardEvents({
                 className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-sky-500/15 hover:bg-sky-500/25 border border-sky-500/30 text-sky-300 text-xs sm:text-sm font-medium transition cursor-pointer"
               >
                 <Cloud className="w-4 h-4" />
-                <span>Kết nối Sheet</span>
+                <span>Kết nối dữ liệu</span>
               </button>
             )}
             <div className="text-[11px] text-slate-400 flex flex-col sm:items-end gap-0.5">

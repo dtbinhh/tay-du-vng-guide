@@ -423,7 +423,7 @@ export default function App() {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2 font-semibold text-white">
                 <Cloud className="w-5 h-5 text-amber-400" />
-                Tự Động Đồng Bộ Google Sheet
+                Tự Động Đồng Bộ Dữ Liệu
               </div>
               <button
                 type="button"
@@ -435,7 +435,7 @@ export default function App() {
             </div>
 
             <p className="text-xs text-slate-400 leading-relaxed">
-              Nhập <strong>Mã PIN</strong> để làm mới dữ liệu trực tiếp từ Google Sheet (chống spam đồng bộ liên tục).
+              Nhập <strong>Mã PIN</strong> để làm mới dữ liệu trực tiếp.
             </p>
 
             <div>

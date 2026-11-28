@@ -167,7 +167,7 @@ export async function fetchSheetSync(
 ): Promise<SyncedPayload> {
   const url = (customUrl ?? getConfiguredApiUrl()).trim();
   if (!url) {
-    throw new Error('Chưa cấu hình URL Google Apps Script');
+    throw new Error('Chưa cấu hình nguồn đồng bộ dữ liệu.');
   }
 
   let query = `action=all&t=${Date.now()}`;
@@ -236,7 +236,7 @@ export async function pushEventRoundToSheet(params: {
 }): Promise<{ ok: boolean; message: string }> {
   const url = getConfiguredApiUrl();
   if (!url) {
-    return { ok: false, message: 'Chưa cấu hình URL Google Apps Script.' };
+    return { ok: false, message: 'Chưa cấu hình nguồn đồng bộ dữ liệu.' };
   }
 
   const validationError = validateEventRoundInput(params);
@@ -248,7 +248,7 @@ export async function pushEventRoundToSheet(params: {
   if (!pin) {
     return {
       ok: false,
-      message: 'Vui lòng nhập Mã PIN Admin trong mục "Đồng bộ Google Sheet" trước khi ghi lên Sheet.',
+      message: 'Vui lòng nhập Mã PIN Admin trong mục "Đồng bộ dữ liệu" trước khi lưu.',
     };
   }
 
