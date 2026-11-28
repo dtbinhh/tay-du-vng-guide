@@ -170,16 +170,29 @@ export function EventCalculators({
   ]);
 
   // Manh Ha Hoan Ca state
-  const [mhPacks, setMhPacks] = useState([
+  const [mhPacks, setMhPacks] = useState<
+    { lb: number; maxQty?: number; cam: number; vang: number; qty: number }[]
+  >([
     { lb: 6, maxQty: 1, cam: 1, vang: 0, qty: 0 },
     { lb: 30, maxQty: 3, cam: 3, vang: 0, qty: 0 },
     { lb: 98, maxQty: 3, cam: 0, vang: 2, qty: 0 },
     { lb: 198, maxQty: 4, cam: 0, vang: 4, qty: 0 },
     { lb: 328, maxQty: 4, cam: 0, vang: 6, qty: 0 },
+    { lb: 648, cam: 0, vang: 11, qty: 0 },
   ]);
   const [mhXuCo, setMhXuCo] = useState(0);
   const [mhMocHoanTra, setMhMocHoanTra] = useState(0);
   const [mhMocSatCanh, setMhMocSatCanh] = useState(0);
+
+  // Auto-select highest Moc Hoan Tra <= total shop Luc Bao when mhPacks changes
+  useEffect(() => {
+    const shopLb = mhPacks.reduce((s, p) => s + p.qty * p.lb, 0);
+    let matchedMoc = 0;
+    for (const r of MANH_HA_HOAN_TRA) {
+      if (r.moc <= shopLb) matchedMoc = r.moc;
+    }
+    setMhMocHoanTra(matchedMoc);
+  }, [mhPacks]);
 
   // Con Lon state
   const [conLon, setConLon] = useState([
@@ -385,7 +398,7 @@ export function EventCalculators({
     const scRows = MANH_HA_SAT_CANH.filter((r) => r.moc <= mhMocSatCanh);
     const scXu = scRows.reduce((s, r) => s + r.hat, 0) * 50;
     const scLb = scRows.filter((r) => r.donVi === 'Lục bảo').reduce((s, r) => s + r.gia, 0);
-    return { shopPts, htXu, scXu, totalXu: mhXuCo + shopPts + htXu + scXu, totalLb: shopLb + scLb };
+    return { shopPts, shopLb, scLb, htXu, scXu, totalXu: mhXuCo + shopPts + htXu + scXu, totalLb: shopLb + scLb };
   }, [mhPacks, mhXuCo, mhMocHoanTra, mhMocSatCanh]);
 
   const ctTotal = useMemo(() => ctItems.reduce((s, i) => s + i.qty * i.pts, 0), [ctItems]);
@@ -1483,7 +1496,8 @@ export function EventCalculators({
                   <div>
                     <div className="text-sm font-semibold text-white">Gói {p.lb} Lục Bảo</div>
                     <div className="text-xs text-slate-400">
-                      {p.cam > 0 ? `${p.cam} hạt cam/gói` : `${p.vang} hạt vàng/gói`} • Tối đa {p.maxQty} gói
+                      {p.cam > 0 ? `${p.cam} hạt cam/gói` : `${p.vang} hạt vàng/gói`} •{' '}
+                      {p.maxQty ? `Tối đa ${p.maxQty} gói` : 'Không giới hạn'}
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
@@ -1493,15 +1507,26 @@ export function EventCalculators({
                       max={p.maxQty}
                       value={p.qty}
                       onChange={(e) => {
-                        const v = Math.max(0, Number(e.target.value) || 0);
+                        let v = Math.max(0, Number(e.target.value) || 0);
+                        if (p.maxQty) v = Math.min(v, p.maxQty);
                         setMhPacks((prev) => prev.map((x, i) => (i === idx ? { ...x, qty: v } : x)));
                       }}
                       className="w-16 rounded-lg bg-[#0b0e14] border border-white/15 px-2 py-1 text-center font-mono text-sm text-white"
                     />
-                    <span className="w-16 text-right font-mono text-xs text-amber-300">{p.qty * p.lb} lb</span>
+                    <span className="w-16 text-right font-mono text-xs text-amber-300">
+                      {(p.qty * p.lb).toLocaleString()} lb
+                    </span>
                   </div>
                 </div>
               ))}
+              <div className="flex items-center justify-between rounded-xl bg-amber-500/10 border border-amber-500/25 px-3.5 py-2.5 mt-1">
+                <span className="text-xs sm:text-sm font-semibold text-amber-200">
+                  Tổng Lục Bảo từ Shop
+                </span>
+                <span className="font-mono font-bold text-base text-amber-400">
+                  {mhSummary.shopLb.toLocaleString()} lb
+                </span>
+              </div>
             </div>
 
             <div className="lg:col-span-5 rounded-2xl border border-amber-500/25 bg-[#121722]/95 p-4 sm:p-5 space-y-4">
@@ -1568,6 +1593,12 @@ export function EventCalculators({
                 <div className="flex justify-between">
                   <span>Xu mốc sát cánh:</span>
                   <strong className="font-mono">{mhSummary.scXu.toLocaleString()}</strong>
+                </div>
+                <div className="flex justify-between">
+                  <span>Lục bảo từ shop / Sát cánh:</span>
+                  <strong className="font-mono text-amber-300">
+                    {mhSummary.shopLb.toLocaleString()} / {mhSummary.scLb.toLocaleString()} lb
+                  </strong>
                 </div>
               </div>
 
