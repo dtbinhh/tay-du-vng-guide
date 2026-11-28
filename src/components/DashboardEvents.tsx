@@ -225,7 +225,7 @@ export function DashboardEvents({
               </span>
               {nextAutoSyncLabel && (
                 <span className="text-[10px] text-slate-500">
-                  Tự động (mỗi 2h từ 04:00 UTC+7): kế tiếp {nextAutoSyncLabel}
+                  Tự động (mỗi 4h từ 04:00 UTC+7): kế tiếp {nextAutoSyncLabel}
                 </span>
               )}
             </div>

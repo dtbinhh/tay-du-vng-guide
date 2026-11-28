@@ -1318,7 +1318,7 @@ export const EV_SINH_NHAT_IMAGES = [
 export interface HoanTuPack {
   lb: number;
   tickets: number;
-  defaultQty: number;
+  maxQty?: number;
 }
 
 export interface HoanTuKimTieuConfig {
@@ -1361,14 +1361,73 @@ export const HOAN_TU_KIM_TIEU_DATA: HoanTuKimTieuConfig = {
     tongMonManh: '25 mảnh kim năm tỵ',
   },
   baoThiPacks: [
-    { lb: 6, tickets: 5, defaultQty: 1 },
-    { lb: 30, tickets: 20, defaultQty: 1 },
-    { lb: 98, tickets: 50, defaultQty: 2 },
-    { lb: 198, tickets: 80, defaultQty: 3 },
-    { lb: 328, tickets: 120, defaultQty: 3 },
-    { lb: 648, tickets: 200, defaultQty: 0 },
+    { lb: 6, tickets: 5, maxQty: 1 },
+    { lb: 30, tickets: 20, maxQty: 1 },
+    { lb: 98, tickets: 50, maxQty: 2 },
+    { lb: 198, tickets: 80, maxQty: 3 },
+    { lb: 328, tickets: 120, maxQty: 3 },
+    { lb: 648, tickets: 200 },
   ],
 };
+
+export const KIM_TUONG_RANK_REWARDS = [
+  { rank: 'Hạng 1', shards: 160 },
+  { rank: 'Hạng 2', shards: 100 },
+  { rank: 'Hạng 3', shards: 80 },
+  { rank: 'Hạng 4 ~ 10', shards: 60 },
+  { rank: 'Hạng 11 ~ 30', shards: 50 },
+  { rank: 'Hạng 31 ~ 50', shards: 40 },
+  { rank: 'Hạng 51 ~ 100', shards: 30 },
+  { rank: 'Hạng 101 ~ 200', shards: 20 },
+  { rank: 'Hạng 201 ~ 300', shards: 10 },
+  { rank: 'Hạng 301 ~ 400', shards: 5 },
+];
+
+export const QUA_TUYEN_DUYEN_MILESTONES = [
+  {
+    points: 3000,
+    rewards: ['Túi đá quý 2*', 'Hộ bí mật 5*', 'Đá pháp bảo 4000*'],
+  },
+  {
+    points: 7000,
+    rewards: ['Chọn sách kỹ kỵ cam 1*', 'Tẩy luyện kỵ 40*', 'Đá pháp bảo 6000*'],
+  },
+  {
+    points: 12000,
+    rewards: ['Rương linh bảo 1*', 'Hộ bí mật 15*', 'Đá pháp bảo 8000*'],
+  },
+  {
+    points: 20000,
+    rewards: ['Đào 9000 1*', 'Phôi linh kỵ cam 2*', 'Hoán linh kỵ 10*', 'Đá pháp bảo 8000*'],
+  },
+  {
+    points: 35000,
+    rewards: [
+      'Phôi kỵ trang đỏ 3* / Phôi pet',
+      'Tinh luyện trang bị cam 100*',
+      'Hoán linh kỵ 15*',
+      'Đá pháp bảo 15000*',
+    ],
+  },
+  {
+    points: 55000,
+    rewards: [
+      'Vũ khí bậc 1 / Thần thông kim',
+      'Tư chất đơn 1*',
+      'Hoán linh kỵ 15*',
+      'Đá pháp bảo 30000*',
+    ],
+  },
+  {
+    points: 80000,
+    rewards: [
+      'Chọn tướng kim / Chọn tiên tàng đỏ',
+      'Vô tự thiên thư 1*',
+      'Hoán linh kỵ 20*',
+      'Đá pháp bảo 40000*',
+    ],
+  },
+];
 
 export const MANH_HA_HOAN_TRA = [
   { moc: 0, xuDienVi: 0, xuPhuongLuu: 0 },

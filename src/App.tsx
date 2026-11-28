@@ -93,8 +93,8 @@ export default function App() {
     () => getScheduledSyncSlots().nextSlotLabel
   );
 
-  // Scheduled auto-sync every 2 hours starting from 04:00 UTC+7
-  // Does NOT spam on page reload — only syncs once per 2-hour slot.
+  // Scheduled auto-sync every 4 hours starting from 04:00 UTC+7
+  // Does NOT spam on page reload — only syncs once per 4-hour slot.
   useEffect(() => {
     if (!getConfiguredApiUrl()) return;
 
@@ -234,7 +234,7 @@ export default function App() {
     const quickEvents: { key: EventTabKey; title: string; keywords: string }[] = [
       { key: 'hoan-tu', title: 'Hoan Tụ Kim Tiêu', keywords: 'hoan tu kim tieu anh dang bao thi ve' },
       { key: 'kim-tuong', title: 'Quay Kim Tướng', keywords: 'kim tuong ve manh' },
-      { key: 'tich-xa', title: 'Tích Xả', keywords: 'tich xa thien giac hoan luoi bat ma' },
+      { key: 'tich-xa', title: 'Quà Tuyên Duyên (Tích Xả)', keywords: 'qua tuyen duyen tich xa thien giac hoan luoi bat ma hoan linh but thien co ban' },
       { key: 'ho-du', title: 'Hồ Du Tân Viên', keywords: 'ho du tan vien hoa dang lien hoa du long' },
       { key: 'manh-ha', title: 'Mạnh Hạ Hoan Ca', keywords: 'manh ha hoan ca hoan tra sat canh' },
       { key: 'con-lon', title: 'Côn Lôn Tiên Cảnh', keywords: 'con lon tien canh u lan than moc tien tuy' },

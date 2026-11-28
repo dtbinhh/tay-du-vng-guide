@@ -1,13 +1,15 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Calculator, Clock, Gift, Info, Search, Sparkles, ZoomIn } from 'lucide-react';
+import { Calculator, Clock, Gift, Info, RotateCcw, Search, Sparkles, ZoomIn } from 'lucide-react';
 import {
   CUU_U_IMAGES,
   DOI_QUYET_RANKS,
   EV_SINH_NHAT_IMAGES,
   HOAN_TU_KIM_TIEU_DATA,
+  KIM_TUONG_RANK_REWARDS,
   LAM_LANG_EVENTS,
   MANH_HA_HOAN_TRA,
   MANH_HA_SAT_CANH,
+  QUA_TUYEN_DUYEN_MILESTONES,
   type HoanTuKimTieuConfig,
 } from '../data/gameData';
 import type { LightboxImage } from './Lightbox';
@@ -38,7 +40,7 @@ const EVENT_TABS: { id: EventTabKey; label: string }[] = [
   { id: 'lam-lang', label: 'Lâm Lang Tiên Các' },
   { id: 'kim-tuong', label: 'Kim Tướng' },
   { id: 'doi-quyet', label: 'Đối Quyết Đỉnh Cao' },
-  { id: 'tich-xa', label: 'Tích Xả' },
+  { id: 'tich-xa', label: 'Quà Tuyên Duyên (Tích Xả)' },
   { id: 'ho-du', label: 'Hồ Du Tân Viên' },
   { id: 'manh-ha', label: 'Mạnh Hạ Hoan Ca' },
   { id: 'con-lon', label: 'Côn Lôn Tiên Cảnh' },
@@ -69,18 +71,28 @@ export function EventCalculators({
 
   // Hoan Tu Kim Tieu state
   const [htIncludeFree, setHtIncludeFree] = useState(true);
-  const [htInclude98, setHtInclude98] = useState(true);
-  const [htIncludeQua5Ngay, setHtIncludeQua5Ngay] = useState(true);
+  const [htInclude98, setHtInclude98] = useState(false);
+  const [htIncludeQua5Ngay, setHtIncludeQua5Ngay] = useState(false);
   const [htIncludeCaNhan, setHtIncludeCaNhan] = useState(true);
   const [htIncludeTongMon, setHtIncludeTongMon] = useState(true);
   const [htPacks, setHtPacks] = useState(() =>
-    htConfig.baoThiPacks.map((p) => ({ lb: p.lb, tickets: p.tickets, qty: p.defaultQty }))
+    htConfig.baoThiPacks.map((p) => ({
+      lb: p.lb,
+      tickets: p.tickets,
+      maxQty: p.maxQty,
+      qty: 0,
+    }))
   );
 
   useEffect(() => {
     if (syncedHoanTu?.baoThiPacks?.length) {
       setHtPacks(
-        syncedHoanTu.baoThiPacks.map((p) => ({ lb: p.lb, tickets: p.tickets, qty: p.defaultQty }))
+        syncedHoanTu.baoThiPacks.map((p) => ({
+          lb: p.lb,
+          tickets: p.tickets,
+          maxQty: p.maxQty ?? (p as { defaultQty?: number }).defaultQty,
+          qty: 0,
+        }))
       );
     }
   }, [syncedHoanTu]);
@@ -93,75 +105,88 @@ export function EventCalculators({
   const [dqTargetIdx, setDqTargetIdx] = useState(DOI_QUYET_RANKS.length - 1);
 
   // Kim Tuong state
-  const [kimPacks, setKimPacks] = useState([
-    { label: 'Gói 6 Lục Bảo', lb: 6, tickets: 1, qty: 1 },
-    { label: 'Gói 30 Lục Bảo', lb: 30, tickets: 4, qty: 1 },
-    { label: 'Gói 98 Lục Bảo', lb: 98, tickets: 8, qty: 1 },
-    { label: 'Gói 198 Lục Bảo', lb: 198, tickets: 15, qty: 2 },
+  const [kimFree, setKimFree] = useState(true);
+  const [kimDanh, setKimDanh] = useState(true);
+  const [kimCotTruyen, setKimCotTruyen] = useState(true);
+  const [kimPacks, setKimPacks] = useState<
+    { label: string; lb: number; tickets: number; maxQty?: number; qty: number }[]
+  >([
+    { label: 'Gói 6 Lục Bảo', lb: 6, tickets: 1, maxQty: 1, qty: 0 },
+    { label: 'Gói 30 Lục Bảo', lb: 30, tickets: 4, maxQty: 1, qty: 0 },
+    { label: 'Gói 98 Lục Bảo', lb: 98, tickets: 8, maxQty: 1, qty: 0 },
+    { label: 'Gói 198 Lục Bảo', lb: 198, tickets: 15, maxQty: 2, qty: 0 },
+    { label: 'Gói 328 Lục Bảo', lb: 328, tickets: 22, maxQty: 3, qty: 0 },
+    { label: 'Gói 648 Lục Bảo', lb: 648, tickets: 40, qty: 0 },
   ]);
 
   // Tich Xa state
   const [tichXa, setTichXa] = useState([
-    { name: 'Thiên Giác Hoàn', pts: 10, cur: 100, maxPts: 1000 },
-    { name: 'Ngự Thú Tiên Sách', pts: 20, cur: 100, maxPts: 2000 },
-    { name: 'Lưới Bắt Ma', pts: 10, cur: 100, maxPts: 2000 },
-    { name: 'Hoán Linh Bút', pts: 60, cur: 50, maxPts: 6000 },
-    { name: 'Thiên Cơ Bàn', pts: 40, cur: 150, maxPts: 6000 },
-    { name: 'Hoán Kỵ Tiên Linh', pts: 200, cur: 15, maxPts: 0 },
+    { name: 'Thiên Giác Hoàn', pts: 10, cur: 0, maxPts: 1000 },
+    { name: 'Ngự Thú Tiên Sách', pts: 20, cur: 0, maxPts: 2000 },
+    { name: 'Lưới Bắt Ma', pts: 10, cur: 0, maxPts: 2000 },
+    { name: 'Hoán Linh Bút', pts: 60, cur: 0, maxPts: 6000 },
+    { name: 'Thiên Cơ Bàn', pts: 40, cur: 0, maxPts: 6000 },
+    { name: 'Hoán Kỵ Tiên Linh', pts: 200, cur: 0, maxPts: 0 },
   ]);
 
   // Ho Du Tan Vien state
   const [hoDuItems, setHoDuItems] = useState([
-    { name: 'Hoa đăng', pts: 5, qty: 115 },
-    { name: 'Liên hoa', pts: 10, qty: 126 },
-    { name: 'Uyên ương', pts: 15, qty: 100 },
-    { name: 'Lý ảnh (Cá)', pts: 20, qty: 21 },
+    { name: 'Hoa đăng', pts: 5, qty: 0 },
+    { name: 'Liên hoa', pts: 10, qty: 0 },
+    { name: 'Uyên ương', pts: 15, qty: 0 },
+    { name: 'Lý ảnh (Cá)', pts: 20, qty: 0 },
     { name: 'Du long (Long)', pts: 40, qty: 0 },
   ]);
   const [hoDuPacks, setHoDuPacks] = useState([
-    { label: 'Gói 6 lb (3 Cá)', perPack: 3, qty: 1, lb: 6, ptsEach: 20 },
-    { label: 'Gói 30 lb (9 Cá)', perPack: 9, qty: 2, lb: 30, ptsEach: 20 },
-    { label: 'Gói 98 lb (15 Cá)', perPack: 15, qty: 2, lb: 98, ptsEach: 20 },
-    { label: 'Gói 198 lb (15 Long)', perPack: 15, qty: 3, lb: 198, ptsEach: 40 },
+    { label: 'Gói 6 lb (3 Cá)', perPack: 3, qty: 0, lb: 6, ptsEach: 20 },
+    { label: 'Gói 30 lb (9 Cá)', perPack: 9, qty: 0, lb: 30, ptsEach: 20 },
+    { label: 'Gói 98 lb (15 Cá)', perPack: 15, qty: 0, lb: 98, ptsEach: 20 },
+    { label: 'Gói 198 lb (15 Long)', perPack: 15, qty: 0, lb: 198, ptsEach: 40 },
   ]);
 
   // Manh Ha Hoan Ca state
   const [mhPacks, setMhPacks] = useState([
-    { lb: 6, maxQty: 1, cam: 1, vang: 0, qty: 1 },
-    { lb: 30, maxQty: 3, cam: 3, vang: 0, qty: 3 },
-    { lb: 98, maxQty: 3, cam: 0, vang: 2, qty: 3 },
-    { lb: 198, maxQty: 4, cam: 0, vang: 4, qty: 1 },
+    { lb: 6, maxQty: 1, cam: 1, vang: 0, qty: 0 },
+    { lb: 30, maxQty: 3, cam: 3, vang: 0, qty: 0 },
+    { lb: 98, maxQty: 3, cam: 0, vang: 2, qty: 0 },
+    { lb: 198, maxQty: 4, cam: 0, vang: 4, qty: 0 },
     { lb: 328, maxQty: 4, cam: 0, vang: 6, qty: 0 },
   ]);
   const [mhXuCo, setMhXuCo] = useState(0);
-  const [mhMocHoanTra, setMhMocHoanTra] = useState(388);
+  const [mhMocHoanTra, setMhMocHoanTra] = useState(0);
   const [mhMocSatCanh, setMhMocSatCanh] = useState(0);
 
   // Con Lon state
   const [conLon, setConLon] = useState([
-    { name: 'U Lan', need: 365000, cur: 336000, rate: 21100 },
-    { name: 'Thần Mộc', need: 100000, cur: 45000, rate: 17900 },
+    { name: 'U Lan', need: 0, cur: 0, rate: 0 },
+    { name: 'Thần Mộc', need: 0, cur: 0, rate: 0 },
     { name: 'Long Nham', need: 0, cur: 0, rate: 0 },
   ]);
 
   // Chieu Tai state
   const [ctItems, setCtItems] = useState([
-    { name: 'Trâu tím', qty: 60, pts: 3 },
-    { name: 'Hổ cam', qty: 1710, pts: 10 },
-    { name: 'Sư cam', qty: 105, pts: 10 },
+    { name: 'Trâu tím', qty: 0, pts: 3 },
+    { name: 'Hổ cam', qty: 0, pts: 10 },
+    { name: 'Sư cam', qty: 0, pts: 10 },
   ]);
 
   // That Tich state
   const [ttTim, setTtTim] = useState(0);
-  const [ttCam, setTtCam] = useState(70);
+  const [ttCam, setTtCam] = useState(0);
 
   // Ev Sinh Nhat state
+  const [snGhepTranh, setSnGhepTranh] = useState(true);
+  const [snBatGioi, setSnBatGioi] = useState(true);
+  const [snFreeShop, setSnFreeShop] = useState(true);
+  const [snPassFree, setSnPassFree] = useState(true);
+  const [snPass328, setSnPass328] = useState(false);
+  const [snCaChep, setSnCaChep] = useState(false);
   const [snPacks, setSnPacks] = useState([
-    { lb: 30, qty: 1, tran: 5 },
-    { lb: 98, qty: 2, tran: 10 },
-    { lb: 198, qty: 2, tran: 15 },
-    { lb: 328, qty: 3, tran: 20 },
-    { lb: 648, qty: 2, tran: 35 },
+    { lb: 30, qty: 0, maxQty: 1, tran: 5 },
+    { lb: 98, qty: 0, maxQty: 2, tran: 10 },
+    { lb: 198, qty: 0, maxQty: 2, tran: 15 },
+    { lb: 328, qty: 0, maxQty: 3, tran: 20 },
+    { lb: 648, qty: 0, maxQty: 2, tran: 35 },
   ]);
 
   const htTotals = useMemo(() => {
@@ -223,14 +248,19 @@ export function EventCalculators({
     return { targetPts, need, winsNeeded: Math.ceil(need / 20), losesNeeded: Math.ceil(need / 15) };
   }, [dqCurrentPts, dqTargetIdx]);
 
-  const kimTotals = useMemo(
-    () =>
-      kimPacks.reduce(
-        (acc, p) => ({ lb: acc.lb + p.lb * p.qty, tickets: acc.tickets + p.tickets * p.qty }),
-        { lb: 0, tickets: 0 }
-      ),
-    [kimPacks]
-  );
+  const kimTotals = useMemo(() => {
+    const packTotals = kimPacks.reduce(
+      (acc, p) => ({ lb: acc.lb + p.lb * p.qty, tickets: acc.tickets + p.tickets * p.qty }),
+      { lb: 0, tickets: 0 }
+    );
+    const freeTickets = (kimFree ? 13 : 0) + (kimDanh ? 15 : 0) + (kimCotTruyen ? 20 : 0);
+    return {
+      lb: packTotals.lb,
+      packTickets: packTotals.tickets,
+      freeTickets,
+      tickets: packTotals.tickets + freeTickets,
+    };
+  }, [kimPacks, kimFree, kimDanh, kimCotTruyen]);
 
   const tichXaTotal = useMemo(() => tichXa.reduce((s, item) => s + item.pts * item.cur, 0), [tichXa]);
   const hoDuItemTotal = useMemo(() => hoDuItems.reduce((s, i) => s + i.pts * i.qty, 0), [hoDuItems]);
@@ -255,13 +285,39 @@ export function EventCalculators({
   }, [mhPacks, mhXuCo, mhMocHoanTra, mhMocSatCanh]);
 
   const ctTotal = useMemo(() => ctItems.reduce((s, i) => s + i.qty * i.pts, 0), [ctItems]);
-  const snSummary = useMemo(
-    () =>
-      snPacks.reduce(
-        (acc, p) => ({ lb: acc.lb + p.lb * p.qty, tran: acc.tran + p.tran * p.qty }),
-        { lb: 0, tran: 0 }
-      ),
-    [snPacks]
+  const snSummary = useMemo(() => {
+    const shop = snPacks.reduce(
+      (acc, p) => ({ lb: acc.lb + p.lb * p.qty, tran: acc.tran + p.tran * p.qty }),
+      { lb: 0, tran: 0 }
+    );
+    const freeTran =
+      (snGhepTranh ? 11 : 0) +
+      (snBatGioi ? 24 : 0) +
+      (snFreeShop ? 8 : 0) +
+      (snPassFree ? 27 : 0);
+    const extraLb = (snPass328 ? 328 : 0) + (snCaChep ? 48 : 0);
+    const extraTran = (snPass328 ? 28 : 0) + (snCaChep ? 16 : 0);
+    return {
+      shopLb: shop.lb,
+      shopTran: shop.tran,
+      freeTran,
+      extraLb,
+      extraTran,
+      lb: shop.lb + extraLb,
+      tran: shop.tran + freeTran + extraTran,
+    };
+  }, [snPacks, snGhepTranh, snBatGioi, snFreeShop, snPassFree, snPass328, snCaChep]);
+
+  const ResetBtn = ({ onClick }: { onClick: () => void }) => (
+    <button
+      type="button"
+      onClick={onClick}
+      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white/5 hover:bg-rose-500/15 border border-white/10 hover:border-rose-500/35 text-slate-300 hover:text-rose-200 text-xs font-medium transition cursor-pointer shrink-0"
+      title="Đặt lại về 0"
+    >
+      <RotateCcw className="w-3.5 h-3.5" />
+      Reset
+    </button>
   );
 
   return (
@@ -298,9 +354,9 @@ export function EventCalculators({
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           {/* Kim Tieu Bao Thi */}
           <div className="lg:col-span-7 rounded-2xl border border-white/10 bg-[#121722]/90 p-4 sm:p-5 space-y-3">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between gap-2">
               <h2 className="font-semibold text-white">Kim Tiêu Bảo Thị (Gói Lục Bảo)</h2>
-              <span className="text-xs text-slate-400">Nhập SL gói mua</span>
+              <ResetBtn onClick={() => setHtPacks((prev) => prev.map((p) => ({ ...p, qty: 0 })))} />
             </div>
             {htPacks.map((p, idx) => (
               <div
@@ -309,15 +365,20 @@ export function EventCalculators({
               >
                 <div>
                   <div className="text-sm font-semibold text-white">Gói {p.lb} Lục Bảo</div>
-                  <div className="text-xs text-slate-400">{p.tickets} vé / gói</div>
+                  <div className="text-xs text-slate-400">
+                    {p.tickets} vé / gói
+                    {p.maxQty && p.maxQty > 0 ? ` • Tối đa ${p.maxQty} gói` : ''}
+                  </div>
                 </div>
                 <div className="flex items-center gap-3">
                   <input
                     type="number"
                     min={0}
+                    max={p.maxQty && p.maxQty > 0 ? p.maxQty : undefined}
                     value={p.qty}
                     onChange={(e) => {
-                      const v = Math.max(0, Number(e.target.value) || 0);
+                      let v = Math.max(0, Number(e.target.value) || 0);
+                      if (p.maxQty && p.maxQty > 0) v = Math.min(v, p.maxQty);
                       setHtPacks((prev) => prev.map((x, i) => (i === idx ? { ...x, qty: v } : x)));
                     }}
                     className="w-18 rounded-lg bg-[#0b0e14] border border-white/15 px-2 py-1 text-center font-mono text-sm text-white"
@@ -596,14 +657,16 @@ export function EventCalculators({
 
       {/* Kim Tuong */}
       {selectedEvent === 'kim-tuong' && (
-        <div className="max-w-2xl">
-          <div className="rounded-2xl border border-amber-500/25 bg-[#121722]/95 p-4 sm:p-5 space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="font-semibold text-amber-300 text-sm sm:text-base flex items-center gap-2">
-                <Calculator className="w-4 h-4" />
-                Tính Gói Vé Quay Kim Tướng
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            <div className="lg:col-span-7 space-y-6">
+              <div className="rounded-2xl border border-white/10 bg-[#121722]/90 p-4 sm:p-5 space-y-3">
+            <div className="flex items-center justify-between gap-2">
+              <div className="font-semibold text-white text-sm sm:text-base flex items-center gap-2">
+                <Calculator className="w-4 h-4 text-amber-400" />
+                Gói Vé Quay Kim Tướng
               </div>
-              <span className="text-xs text-slate-400">Nhập SL gói mua</span>
+              <ResetBtn onClick={() => setKimPacks((prev) => prev.map((p) => ({ ...p, qty: 0 })))} />
             </div>
             <div className="space-y-2.5">
               {kimPacks.map((p, idx) => (
@@ -613,41 +676,130 @@ export function EventCalculators({
                 >
                   <div>
                     <div className="text-sm font-medium text-white">{p.label}</div>
-                    <div className="text-xs text-slate-400">{p.tickets} vé / gói</div>
+                    <div className="text-xs text-slate-400">
+                      {p.tickets} vé / gói •{' '}
+                      {p.maxQty ? `Tối đa ${p.maxQty} gói` : 'Không giới hạn'}
+                    </div>
                   </div>
                   <div className="flex items-center gap-3">
                     <input
                       type="number"
                       min={0}
+                      max={p.maxQty}
                       value={p.qty}
                       onChange={(e) => {
-                        const val = Math.max(0, Number(e.target.value) || 0);
+                        let val = Math.max(0, Number(e.target.value) || 0);
+                        if (p.maxQty) val = Math.min(val, p.maxQty);
                         setKimPacks((prev) =>
                           prev.map((item, i) => (i === idx ? { ...item, qty: val } : item))
                         );
                       }}
-                      className="w-20 rounded-lg bg-[#0b0e14] border border-white/15 px-2.5 py-1.5 text-center text-sm font-mono text-white"
+                      className="w-18 rounded-lg bg-[#0b0e14] border border-white/15 px-2.5 py-1.5 text-center text-sm font-mono text-white"
                     />
-                    <span className="text-xs text-slate-400 font-mono w-16 text-right">
-                      {p.lb * p.qty} lb
+                    <span className="text-xs text-amber-300 font-mono w-16 text-right">
+                      {(p.lb * p.qty).toLocaleString()} lb
                     </span>
                     <span className="text-xs text-emerald-300 font-mono font-semibold w-14 text-right">
-                      {p.tickets * p.qty} vé
+                      {(p.tickets * p.qty).toLocaleString()} vé
                     </span>
                   </div>
                 </div>
               ))}
             </div>
-            <div className="grid grid-cols-2 gap-3 pt-1">
-              <div className="rounded-xl bg-amber-500/10 border border-amber-500/25 p-3.5 text-center">
-                <div className="text-xs text-slate-400">Tổng Lục Bảo</div>
-                <div className="text-2xl font-bold text-amber-400 font-mono">{kimTotals.lb}</div>
+          </div>
+
+          <div className="rounded-2xl border border-white/10 bg-[#121722]/90 overflow-hidden">
+            <div className="px-4 sm:px-5 py-3.5 border-b border-white/10 bg-white/[0.02] flex items-center justify-between">
+              <h2 className="font-semibold text-white text-sm sm:text-base">Bảng Thưởng Xếp Hạng Kim Tướng</h2>
+              <span className="text-xs text-amber-300 font-semibold">Top 1 → 400</span>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 p-4">
+              {KIM_TUONG_RANK_REWARDS.map((r, i) => (
+                <div
+                  key={r.rank}
+                  className={`rounded-xl border p-3 text-center ${
+                    i === 0
+                      ? 'bg-amber-500/15 border-amber-500/40'
+                      : i <= 2
+                      ? 'bg-amber-500/8 border-amber-500/25'
+                      : 'bg-black/30 border-white/8'
+                  }`}
+                >
+                  <div className="text-xs text-slate-400">{r.rank}</div>
+                  <div className="font-mono font-bold text-base text-amber-300 mt-1">
+                    {r.shards} mảnh
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+          </div>
+
+          <div className="lg:col-span-5 space-y-4 self-start">
+            <div className="rounded-2xl border border-white/10 bg-[#121722]/90 p-4 sm:p-5 space-y-2.5">
+              <h2 className="font-semibold text-white text-sm">Số vé miễn phí có thể mỗi mùa</h2>
+              <label className="flex items-center justify-between rounded-xl bg-black/30 border border-white/8 px-3.5 py-2.5 cursor-pointer">
+                <span className="flex items-center gap-2.5 text-sm text-slate-200">
+                  <input
+                    type="checkbox"
+                    checked={kimFree}
+                    onChange={(e) => setKimFree(e.target.checked)}
+                    className="accent-amber-500 w-4 h-4"
+                  />
+                  Free
+                </span>
+                <span className="font-mono text-sm font-semibold text-emerald-400">+13 vé</span>
+              </label>
+              <label className="flex items-center justify-between rounded-xl bg-black/30 border border-white/8 px-3.5 py-2.5 cursor-pointer">
+                <span className="flex items-center gap-2.5 text-sm text-slate-200">
+                  <input
+                    type="checkbox"
+                    checked={kimDanh}
+                    onChange={(e) => setKimDanh(e.target.checked)}
+                    className="accent-amber-500 w-4 h-4"
+                  />
+                  Đánh
+                </span>
+                <span className="font-mono text-sm font-semibold text-emerald-400">+15 vé</span>
+              </label>
+              <label className="flex items-center justify-between rounded-xl bg-black/30 border border-white/8 px-3.5 py-2.5 cursor-pointer">
+                <span className="flex items-center gap-2.5 text-sm text-slate-200">
+                  <input
+                    type="checkbox"
+                    checked={kimCotTruyen}
+                    onChange={(e) => setKimCotTruyen(e.target.checked)}
+                    className="accent-amber-500 w-4 h-4"
+                  />
+                  Cốt truyện
+                </span>
+                <span className="font-mono text-sm font-semibold text-emerald-400">+20 vé</span>
+              </label>
+            </div>
+
+            <div className="rounded-2xl border border-amber-500/25 bg-[#121722]/95 p-4 sm:p-5 space-y-3">
+              <h2 className="font-semibold text-amber-300 text-sm">Tổng Kết Kim Tướng</h2>
+              <div className="space-y-1 text-xs text-slate-300">
+                <div className="flex justify-between">
+                  <span>Vé miễn phí / hoạt động:</span>
+                  <strong className="font-mono text-emerald-300">{kimTotals.freeTickets} vé</strong>
+                </div>
+                <div className="flex justify-between">
+                  <span>Vé mua từ gói:</span>
+                  <strong className="font-mono text-emerald-300">{kimTotals.packTickets} vé</strong>
+                </div>
               </div>
-              <div className="rounded-xl bg-emerald-500/10 border border-emerald-500/25 p-3.5 text-center">
-                <div className="text-xs text-slate-400">Tổng Vé</div>
-                <div className="text-2xl font-bold text-emerald-400 font-mono">{kimTotals.tickets}</div>
+              <div className="grid grid-cols-2 gap-3 pt-1">
+                <div className="rounded-xl bg-amber-500/12 border border-amber-500/30 p-3 text-center">
+                  <div className="text-xs text-slate-400">Tổng Lục Bảo</div>
+                  <div className="text-2xl font-bold text-amber-400 font-mono">{kimTotals.lb}</div>
+                </div>
+                <div className="rounded-xl bg-emerald-500/12 border border-emerald-500/30 p-3 text-center">
+                  <div className="text-xs text-slate-400">Tổng Vé</div>
+                  <div className="text-2xl font-bold text-emerald-400 font-mono">{kimTotals.tickets}</div>
+                </div>
               </div>
             </div>
+          </div>
           </div>
         </div>
       )}
@@ -692,7 +844,15 @@ export function EventCalculators({
           </div>
 
           <div className="lg:col-span-4 rounded-2xl border border-amber-500/25 bg-[#121722]/95 p-5 space-y-4 self-start">
-            <h3 className="font-semibold text-amber-300 text-sm">Tính Số Trận Lên Rank</h3>
+            <div className="flex items-center justify-between gap-2">
+              <h3 className="font-semibold text-amber-300 text-sm">Tính Số Trận Lên Rank</h3>
+              <ResetBtn
+                onClick={() => {
+                  setDqCurrentPts(0);
+                  setDqTargetIdx(DOI_QUYET_RANKS.length - 1);
+                }}
+              />
+            </div>
             <div className="flex gap-2 text-xs">
               <span className="px-2.5 py-1 rounded-lg bg-emerald-500/15 text-emerald-300">Win: +20đ</span>
               <span className="px-2.5 py-1 rounded-lg bg-rose-500/15 text-rose-300">Lose: +15đ</span>
@@ -747,58 +907,106 @@ export function EventCalculators({
         </div>
       )}
 
-      {/* Tich Xa */}
+      {/* Qua Tuyen Duyen (Tich Xa) */}
       {selectedEvent === 'tich-xa' && (
-        <div className="rounded-2xl border border-white/10 bg-[#121722]/90 overflow-hidden">
-          <div className="px-4 sm:px-5 py-3.5 border-b border-white/10 bg-white/[0.02] flex justify-between items-center">
-            <h2 className="font-semibold text-white">Tính Điểm Tích Xả</h2>
-            <span className="text-sm font-mono font-bold text-amber-400">
-              Tổng: {tichXaTotal.toLocaleString()} điểm
-            </span>
-          </div>
-          <div className="p-4 space-y-3">
-            {tichXa.map((item, idx) => {
-              const earned = item.pts * item.cur;
-              const needQty = item.maxPts > 0 ? Math.ceil(item.maxPts / item.pts) : 0;
-              const pct = item.maxPts > 0 ? Math.min(100, Math.round((earned / item.maxPts) * 100)) : 100;
-              return (
-                <div key={item.name} className="rounded-xl border border-white/8 bg-[#0c1018] p-3.5 space-y-2">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                    <div>
-                      <div className="font-semibold text-sm text-white">{item.name}</div>
-                      <div className="text-xs text-slate-400">
-                        {item.pts} điểm/cái
-                        {item.maxPts > 0 && ` • Tối đa ${item.maxPts.toLocaleString()}đ (${needQty} cái)`}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          <div className="lg:col-span-7 rounded-2xl border border-white/10 bg-[#121722]/90 overflow-hidden self-start">
+            <div className="px-4 sm:px-5 py-3.5 border-b border-white/10 bg-white/[0.02] flex flex-wrap justify-between items-center gap-2">
+              <h2 className="font-semibold text-white">Tính Điểm Quà Tuyên Duyên (Tích Xả)</h2>
+              <div className="flex items-center gap-3">
+                <span className="text-sm font-mono font-bold text-amber-400">
+                  Tổng: {tichXaTotal.toLocaleString()} điểm
+                </span>
+                <ResetBtn onClick={() => setTichXa((prev) => prev.map((x) => ({ ...x, cur: 0 })))} />
+              </div>
+            </div>
+            <div className="p-4 space-y-3">
+              {tichXa.map((item, idx) => {
+                const earned = item.pts * item.cur;
+                const needQty = item.maxPts > 0 ? Math.ceil(item.maxPts / item.pts) : 0;
+                const pct = item.maxPts > 0 ? Math.min(100, Math.round((earned / item.maxPts) * 100)) : 100;
+                return (
+                  <div key={item.name} className="rounded-xl border border-white/8 bg-[#0c1018] p-3.5 space-y-2">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <div>
+                        <div className="font-semibold text-sm text-white">{item.name}</div>
+                        <div className="text-xs text-slate-400">
+                          {item.pts} điểm/cái
+                          {item.maxPts > 0 && ` • Tối đa ${item.maxPts.toLocaleString()}đ (${needQty} cái)`}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <label className="text-xs text-slate-400">Hiện có:</label>
+                        <input
+                          type="number"
+                          min={0}
+                          max={needQty > 0 ? needQty : undefined}
+                          value={item.cur}
+                          onChange={(e) => {
+                            let v = Math.max(0, Number(e.target.value) || 0);
+                            if (needQty > 0) v = Math.min(v, needQty);
+                            setTichXa((prev) => prev.map((x, i) => (i === idx ? { ...x, cur: v } : x)));
+                          }}
+                          className="w-24 rounded-lg bg-[#161c2c] border border-white/15 px-2.5 py-1.5 text-sm font-mono text-white text-right"
+                        />
+                        <span className="font-mono font-bold text-emerald-400 w-24 text-right">
+                          {earned.toLocaleString()} đ
+                        </span>
                       </div>
                     </div>
-                    <div className="flex items-center gap-3">
-                      <label className="text-xs text-slate-400">Hiện có:</label>
-                      <input
-                        type="number"
-                        min={0}
-                        value={item.cur}
-                        onChange={(e) => {
-                          const v = Math.max(0, Number(e.target.value) || 0);
-                          setTichXa((prev) => prev.map((x, i) => (i === idx ? { ...x, cur: v } : x)));
-                        }}
-                        className="w-24 rounded-lg bg-[#161c2c] border border-white/15 px-2.5 py-1.5 text-sm font-mono text-white text-right"
-                      />
-                      <span className="font-mono font-bold text-emerald-400 w-24 text-right">
-                        {earned.toLocaleString()} đ
-                      </span>
-                    </div>
+                    {item.maxPts > 0 && (
+                      <div className="h-1.5 w-full rounded-full bg-white/8 overflow-hidden">
+                        <div
+                          className="h-full bg-gradient-to-r from-amber-500 to-emerald-400 rounded-full transition-all"
+                          style={{ width: `${pct}%` }}
+                        />
+                      </div>
+                    )}
                   </div>
-                  {item.maxPts > 0 && (
-                    <div className="h-1.5 w-full rounded-full bg-white/8 overflow-hidden">
-                      <div
-                        className="h-full bg-gradient-to-r from-amber-500 to-emerald-400 rounded-full transition-all"
-                        style={{ width: `${pct}%` }}
-                      />
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="lg:col-span-5 rounded-2xl border border-white/10 bg-[#121722]/90 overflow-hidden self-start">
+            <div className="px-4 sm:px-5 py-3.5 border-b border-white/10 bg-white/[0.02] flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Gift className="w-4 h-4 text-amber-400" />
+                <h2 className="font-semibold text-white">Mốc Quà Tuyên Duyên</h2>
+              </div>
+              <span className="text-xs text-slate-400">7 mốc</span>
+            </div>
+            <div className="divide-y divide-white/8">
+              {QUA_TUYEN_DUYEN_MILESTONES.map((m) => {
+                const reached = tichXaTotal >= m.points;
+                return (
+                  <div
+                    key={m.points}
+                    className={`p-3.5 transition ${reached ? 'bg-emerald-500/10' : 'hover:bg-white/[0.02]'}`}
+                  >
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="font-mono font-bold text-sm text-amber-300">
+                        Mốc {m.points.toLocaleString()} điểm
+                      </span>
+                      {reached ? (
+                        <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                          Đã đạt
+                        </span>
+                      ) : (
+                        <span className="text-[11px] font-mono text-slate-500">
+                          Thiếu {(m.points - tichXaTotal).toLocaleString()}đ
+                        </span>
+                      )}
                     </div>
-                  )}
-                </div>
-              );
-            })}
+                    <ul className="text-xs text-slate-200 space-y-1 pl-3.5 list-disc marker:text-amber-500">
+                      {m.rewards.map((rw) => (
+                        <li key={rw}>{rw}</li>
+                      ))}
+                    </ul>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         </div>
       )}
@@ -808,11 +1016,14 @@ export function EventCalculators({
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           <div className="lg:col-span-6 space-y-5">
             <div className="rounded-2xl border border-white/10 bg-[#121722]/90 p-4 sm:p-5 space-y-3">
-              <div className="flex justify-between items-center">
+              <div className="flex justify-between items-center gap-2">
                 <h2 className="font-semibold text-white">Điểm Vật Phẩm Hiện Có</h2>
-                <span className="font-mono font-bold text-amber-400 text-lg">
-                  {hoDuItemTotal.toLocaleString()} đ
-                </span>
+                <div className="flex items-center gap-2.5">
+                  <span className="font-mono font-bold text-amber-400 text-lg">
+                    {hoDuItemTotal.toLocaleString()} đ
+                  </span>
+                  <ResetBtn onClick={() => setHoDuItems((prev) => prev.map((x) => ({ ...x, qty: 0 })))} />
+                </div>
               </div>
               {hoDuItems.map((item, idx) => (
                 <div
@@ -848,9 +1059,12 @@ export function EventCalculators({
             </div>
 
             <div className="rounded-2xl border border-white/10 bg-[#121722]/90 p-4 sm:p-5 space-y-3">
-              <div className="flex justify-between items-center">
-                <h2 className="font-semibold text-white">Tính Gói Lục Bảo</h2>
-                <span className="text-xs text-slate-400">Cá = 20đ | Long = 40đ</span>
+              <div className="flex justify-between items-center gap-2">
+                <div>
+                  <h2 className="font-semibold text-white">Tính Gói Lục Bảo</h2>
+                  <span className="text-xs text-slate-400">Cá = 20đ | Long = 40đ</span>
+                </div>
+                <ResetBtn onClick={() => setHoDuPacks((prev) => prev.map((p) => ({ ...p, qty: 0 })))} />
               </div>
               {hoDuPacks.map((p, idx) => (
                 <div
@@ -945,7 +1159,10 @@ export function EventCalculators({
 
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
             <div className="lg:col-span-7 rounded-2xl border border-white/10 bg-[#121722]/90 p-4 sm:p-5 space-y-3">
-              <h2 className="font-semibold text-white">Gói Shop Lục Bảo</h2>
+              <div className="flex items-center justify-between gap-2">
+                <h2 className="font-semibold text-white">Gói Shop Lục Bảo</h2>
+                <ResetBtn onClick={() => setMhPacks((prev) => prev.map((p) => ({ ...p, qty: 0 })))} />
+              </div>
               {mhPacks.map((p, idx) => (
                 <div
                   key={p.lb}
@@ -976,7 +1193,16 @@ export function EventCalculators({
             </div>
 
             <div className="lg:col-span-5 rounded-2xl border border-amber-500/25 bg-[#121722]/95 p-4 sm:p-5 space-y-4">
-              <h2 className="font-semibold text-amber-300">Tổng Hợp Mạnh Hạ Hoan Ca</h2>
+              <div className="flex items-center justify-between gap-2">
+                <h2 className="font-semibold text-amber-300">Tổng Hợp Mạnh Hạ Hoan Ca</h2>
+                <ResetBtn
+                  onClick={() => {
+                    setMhXuCo(0);
+                    setMhMocHoanTra(0);
+                    setMhMocSatCanh(0);
+                  }}
+                />
+              </div>
               <div className="space-y-3">
                 <div>
                   <label className="block text-xs text-slate-400 mb-1">Xu hiện có</label>
@@ -1075,9 +1301,14 @@ export function EventCalculators({
           </div>
 
           <div className="rounded-2xl border border-white/10 bg-[#121722]/90 p-4 sm:p-5 space-y-4">
-            <div className="flex items-center gap-2 font-semibold text-white">
-              <Clock className="w-4 h-4 text-amber-400" />
-              Tính Thời Gian Đợi Tài Nguyên
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2 font-semibold text-white">
+                <Clock className="w-4 h-4 text-amber-400" />
+                Tính Thời Gian Đợi Tài Nguyên
+              </div>
+              <ResetBtn
+                onClick={() => setConLon((prev) => prev.map((x) => ({ ...x, need: 0, cur: 0, rate: 0 })))}
+              />
             </div>
             <div className="space-y-3">
               {conLon.map((res, idx) => {
@@ -1149,9 +1380,12 @@ export function EventCalculators({
       {selectedEvent === 'chieu-tai' && (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           <div className="lg:col-span-6 rounded-2xl border border-white/10 bg-[#121722]/90 p-5 space-y-4">
-            <div className="flex justify-between items-center">
+            <div className="flex justify-between items-center gap-2">
               <h2 className="font-semibold text-white">Tính Điểm Chiêu Tài</h2>
-              <span className="font-mono font-bold text-amber-400 text-lg">{ctTotal.toLocaleString()} đ</span>
+              <div className="flex items-center gap-2.5">
+                <span className="font-mono font-bold text-amber-400 text-lg">{ctTotal.toLocaleString()} đ</span>
+                <ResetBtn onClick={() => setCtItems((prev) => prev.map((x) => ({ ...x, qty: 0 })))} />
+              </div>
             </div>
             {ctItems.map((item, idx) => (
               <div
@@ -1205,11 +1439,19 @@ export function EventCalculators({
       {selectedEvent === 'that-tich' && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="rounded-2xl border border-white/10 bg-[#121722]/90 p-5 space-y-4">
-            <div className="flex justify-between items-center">
+            <div className="flex justify-between items-center gap-2">
               <h2 className="font-semibold text-white">Tính Điểm Thất Tịch</h2>
-              <span className="font-mono font-bold text-amber-400 text-lg">
-                {(ttTim * 10 + ttCam * 20).toLocaleString()} đ
-              </span>
+              <div className="flex items-center gap-2.5">
+                <span className="font-mono font-bold text-amber-400 text-lg">
+                  {(ttTim * 10 + ttCam * 20).toLocaleString()} đ
+                </span>
+                <ResetBtn
+                  onClick={() => {
+                    setTtTim(0);
+                    setTtCam(0);
+                  }}
+                />
+              </div>
             </div>
             <div className="space-y-3">
               <div className="flex items-center justify-between rounded-xl bg-black/30 border border-white/8 px-3.5 py-2.5">
@@ -1254,7 +1496,10 @@ export function EventCalculators({
         <div className="space-y-6">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
             <div className="lg:col-span-7 rounded-2xl border border-white/10 bg-[#121722]/90 p-5 space-y-3">
-              <h2 className="font-semibold text-white">Tính Gói Trấn Yêu Đồ (Ev Sinh Nhật)</h2>
+              <div className="flex items-center justify-between gap-2">
+                <h2 className="font-semibold text-white">Gói Shop Trấn Yêu Đồ</h2>
+                <ResetBtn onClick={() => setSnPacks((prev) => prev.map((p) => ({ ...p, qty: 0 })))} />
+              </div>
               {snPacks.map((p, idx) => (
                 <div
                   key={p.lb}
@@ -1262,47 +1507,133 @@ export function EventCalculators({
                 >
                   <div>
                     <div className="text-sm font-medium text-white">Gói {p.lb} Lục Bảo</div>
-                    <div className="text-xs text-slate-400">{p.tran} Trấn yêu đồ / gói</div>
+                    <div className="text-xs text-slate-400">
+                      {p.tran} Trấn yêu đồ / gói • Tối đa {p.maxQty} gói
+                    </div>
                   </div>
                   <div className="flex items-center gap-3">
                     <input
                       type="number"
                       min={0}
+                      max={p.maxQty}
                       value={p.qty}
                       onChange={(e) => {
-                        const v = Math.max(0, Number(e.target.value) || 0);
+                        const v = Math.min(p.maxQty, Math.max(0, Number(e.target.value) || 0));
                         setSnPacks((prev) => prev.map((x, i) => (i === idx ? { ...x, qty: v } : x)));
                       }}
                       className="w-16 rounded-lg bg-[#0b0e14] border border-white/15 px-2 py-1 text-center font-mono text-sm text-white"
                     />
-                    <span className="w-20 text-right font-mono text-xs text-emerald-400">
+                    <span className="w-16 text-right font-mono text-xs text-amber-300">
+                      {(p.lb * p.qty).toLocaleString()} lb
+                    </span>
+                    <span className="w-18 text-right font-mono text-xs font-semibold text-emerald-400">
                       {p.tran * p.qty} trấn
                     </span>
                   </div>
                 </div>
               ))}
-              <div className="grid grid-cols-2 gap-3 pt-1">
-                <div className="rounded-xl bg-amber-500/10 border border-amber-500/25 p-3 text-center">
-                  <div className="text-xs text-slate-400">Tổng Lục Bảo</div>
-                  <div className="text-xl font-bold text-amber-400 font-mono">
-                    {snSummary.lb.toLocaleString()}
-                  </div>
-                </div>
-                <div className="rounded-xl bg-emerald-500/10 border border-emerald-500/25 p-3 text-center">
-                  <div className="text-xs text-slate-400">Tổng Trấn Yêu Đồ</div>
-                  <div className="text-xl font-bold text-emerald-400 font-mono">
-                    {snSummary.tran.toLocaleString()}
-                  </div>
-                </div>
-              </div>
             </div>
 
-            <div className="lg:col-span-5 rounded-2xl border border-white/10 bg-[#121722]/90 p-5 space-y-3 self-start">
-              <h2 className="font-semibold text-white">Ghi Chú Free & Đổi Quà</h2>
-              <div className="text-sm text-slate-300 space-y-2">
-                <div>• Bát Giới: <strong className="text-amber-300">24</strong> | Free shop: <strong className="text-amber-300">8</strong> | Khác: <strong>11</strong></div>
-                <div>• Skin 328lb: <strong>328 Lục bảo</strong> (28 Trấn yêu đồ) — kèm khung, danh hiệu</div>
-                <div>• Mốc đổi khác: 0 lb (27 trấn) • 48 lb (16 trấn)</div>
+            <div className="lg:col-span-5 space-y-4 self-start">
+              {/* Free & Pass & Ca chep */}
+              <div className="rounded-2xl border border-white/10 bg-[#121722]/90 p-4 sm:p-5 space-y-2.5">
+                <h2 className="font-semibold text-white text-sm">Free • Pass Sinh Nhật • Cá Chép</h2>
+                <label className="flex items-center justify-between rounded-xl bg-black/30 border border-white/8 px-3 py-2 cursor-pointer">
+                  <span className="flex items-center gap-2 text-xs sm:text-sm text-slate-200">
+                    <input
+                      type="checkbox"
+                      checked={snGhepTranh}
+                      onChange={(e) => setSnGhepTranh(e.target.checked)}
+                      className="accent-amber-500 w-4 h-4"
+                    />
+                    Ghép tranh (Free)
+                  </span>
+                  <span className="font-mono text-xs font-semibold text-emerald-400">+11 trấn</span>
+                </label>
+                <label className="flex items-center justify-between rounded-xl bg-black/30 border border-white/8 px-3 py-2 cursor-pointer">
+                  <span className="flex items-center gap-2 text-xs sm:text-sm text-slate-200">
+                    <input
+                      type="checkbox"
+                      checked={snBatGioi}
+                      onChange={(e) => setSnBatGioi(e.target.checked)}
+                      className="accent-amber-500 w-4 h-4"
+                    />
+                    Bát Giới (Free)
+                  </span>
+                  <span className="font-mono text-xs font-semibold text-emerald-400">+24 trấn</span>
+                </label>
+                <label className="flex items-center justify-between rounded-xl bg-black/30 border border-white/8 px-3 py-2 cursor-pointer">
+                  <span className="flex items-center gap-2 text-xs sm:text-sm text-slate-200">
+                    <input
+                      type="checkbox"
+                      checked={snFreeShop}
+                      onChange={(e) => setSnFreeShop(e.target.checked)}
+                      className="accent-amber-500 w-4 h-4"
+                    />
+                    Free shop
+                  </span>
+                  <span className="font-mono text-xs font-semibold text-emerald-400">+8 trấn</span>
+                </label>
+                <label className="flex items-center justify-between rounded-xl bg-black/30 border border-white/8 px-3 py-2 cursor-pointer">
+                  <span className="flex items-center gap-2 text-xs sm:text-sm text-slate-200">
+                    <input
+                      type="checkbox"
+                      checked={snPassFree}
+                      onChange={(e) => setSnPassFree(e.target.checked)}
+                      className="accent-amber-500 w-4 h-4"
+                    />
+                    Pass sinh nhật (Free)
+                  </span>
+                  <span className="font-mono text-xs font-semibold text-emerald-400">+27 trấn</span>
+                </label>
+                <label className="flex items-start justify-between gap-2 rounded-xl bg-black/30 border border-white/8 px-3 py-2 cursor-pointer">
+                  <span className="flex items-start gap-2 text-xs sm:text-sm text-slate-200">
+                    <input
+                      type="checkbox"
+                      checked={snPass328}
+                      onChange={(e) => setSnPass328(e.target.checked)}
+                      className="accent-amber-500 w-4 h-4 mt-0.5"
+                    />
+                    <span>
+                      Pass sinh nhật (328 lb)
+                      <span className="block text-[11px] text-amber-300">
+                        Kèm skin 328lb, khung, danh hiệu
+                      </span>
+                    </span>
+                  </span>
+                  <span className="font-mono text-xs font-semibold text-emerald-400 shrink-0">+28 trấn</span>
+                </label>
+                <label className="flex items-center justify-between rounded-xl bg-black/30 border border-white/8 px-3 py-2 cursor-pointer">
+                  <span className="flex items-center gap-2 text-xs sm:text-sm text-slate-200">
+                    <input
+                      type="checkbox"
+                      checked={snCaChep}
+                      onChange={(e) => setSnCaChep(e.target.checked)}
+                      className="accent-amber-500 w-4 h-4"
+                    />
+                    Cá chép hàng ngày (48 lb)
+                  </span>
+                  <span className="font-mono text-xs font-semibold text-emerald-400">+16 trấn</span>
+                </label>
+              </div>
+
+              {/* Total Summary */}
+              <div className="rounded-2xl border border-amber-500/25 bg-[#121722]/95 p-4 sm:p-5 space-y-3">
+                <h2 className="font-semibold text-amber-300 text-sm">Tổng Kết Ev Sinh Nhật</h2>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="rounded-xl bg-amber-500/12 border border-amber-500/30 p-3 text-center">
+                    <div className="text-xs text-slate-400">Tổng Lục Bảo</div>
+                    <div className="text-2xl font-bold text-amber-400 font-mono">
+                      {snSummary.lb.toLocaleString()}
+                    </div>
+                  </div>
+                  <div className="rounded-xl bg-emerald-500/12 border border-emerald-500/30 p-3 text-center">
+                    <div className="text-xs text-slate-400">Tổng Trấn Yêu Đồ</div>
+                    <div className="text-2xl font-bold text-emerald-400 font-mono">
+                      {snSummary.tran.toLocaleString()}
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>

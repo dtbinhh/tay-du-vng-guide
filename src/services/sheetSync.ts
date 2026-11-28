@@ -24,17 +24,17 @@ export const SYNC_COOLDOWN_MS = 30_000; // 30s between manual sync clicks
 export const POST_COOLDOWN_MS = 15_000; // 15s between write requests
 
 const UTC7_OFFSET_MS = 7 * 60 * 60 * 1000;
-const TWO_HOURS_MS = 2 * 60 * 60 * 1000;
+const FOUR_HOURS_MS = 4 * 60 * 60 * 1000;
 
 /**
- * Returns the latest & next scheduled 2-hour sync slot (aligned to 04:00 UTC+7:
- * 04:00, 06:00, 08:00, ..., 00:00, 02:00 UTC+7).
+ * Returns the latest & next scheduled 4-hour sync slot (aligned to 04:00 UTC+7:
+ * 04:00, 08:00, 12:00, 16:00, 20:00, 00:00 UTC+7).
  */
 export function getScheduledSyncSlots(nowMs = Date.now()) {
   const vnMs = nowMs + UTC7_OFFSET_MS;
-  const currentSlotVnMs = Math.floor(vnMs / TWO_HOURS_MS) * TWO_HOURS_MS;
+  const currentSlotVnMs = Math.floor(vnMs / FOUR_HOURS_MS) * FOUR_HOURS_MS;
   const currentSlotUtcMs = currentSlotVnMs - UTC7_OFFSET_MS;
-  const nextSlotUtcMs = currentSlotUtcMs + TWO_HOURS_MS;
+  const nextSlotUtcMs = currentSlotUtcMs + FOUR_HOURS_MS;
 
   const nextVnDate = new Date(nextSlotUtcMs + UTC7_OFFSET_MS);
   const hh = String(nextVnDate.getUTCHours()).padStart(2, '0');

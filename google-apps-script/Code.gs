@@ -264,7 +264,7 @@ function readHoanTuKimTieu(ss) {
     .map((r) => ({
       lb: Number(r[0]) || 0,
       tickets: Number(r[1]) || 0,
-      defaultQty: Number(r[2]) || 0,
+      maxQty: Number(r[2]) > 0 ? Number(r[2]) : undefined,
     }));
   return {
     anhDang: { freeTickets, pack98Lb, pack98Tickets },
