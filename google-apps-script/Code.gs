@@ -53,7 +53,6 @@ function doGet(e) {
       ok: true,
       updatedAt: new Date().toISOString(),
       events: readTrackedEvents(ss),
-      hoanTuKimTieu: readHoanTuKimTieu(ss),
     };
     const jsonStr = JSON.stringify(payload);
     cache.put('tdvng_public_payload_v1', jsonStr, GET_CACHE_SECONDS);
@@ -155,36 +154,39 @@ function readTrackedEvents(ss) {
   const sheet = ss.getSheetByName('Theo dõi ev');
   if (!sheet) return [];
   const lastRow = Math.max(sheet.getLastRow(), 50);
-  const values = sheet.getRange(22, 1, lastRow - 21, 27).getValues();
+  const values = sheet.getRange(22, 1, lastRow - 21, 28).getValues();
   const groups = [
-    [0, 1, 2],
-    [4, 5, 6],
-    [8, 9, 10],
-    [12, 13, 14],
-    [16, 17, 18],
-    [20, 21, 22],
-    [24, 25, 26],
+    [0, 1, 2, 3],
+    [4, 5, 6, 7],
+    [8, 9, 10, 11],
+    [12, 13, 14, 15],
+    [16, 17, 18, 19],
+    [20, 21, 22, 23],
+    [24, 25, 26, 27],
   ];
   const map = {};
 
-  for (const [cName, cStart, cEnd] of groups) {
+  for (const [cName, cStart, cEnd, cType] of groups) {
     let current = '';
     for (let r = 0; r < values.length; r++) {
       const a = values[r][cName];
       const b = values[r][cStart];
       const c = values[r][cEnd];
+      const t = values[r][cType];
       const aStr = a !== null && a !== undefined ? String(a).replace(/\s+/g, ' ').trim() : '';
+      const tStr = t !== null && t !== undefined ? String(t).replace(/\s+/g, ' ').trim() : '';
 
       if (aStr && aStr !== 'STT' && isNaN(Number(aStr))) {
         current = aStr;
-        if (!map[current]) map[current] = [];
+        if (!map[current]) map[current] = { type: tStr, rounds: [] };
+        else if (tStr) map[current].type = tStr;
       } else if (current && b) {
         const start = formatDateISO(b);
         if (start) {
           const end = formatDateISO(c) || start;
-          const dup = map[current].some((x) => x.start === start && x.end === end);
+          const dup = map[current].rounds.some((x) => x.start === start && x.end === end);
           if (!dup) {
-            map[current].push({ round: map[current].length + 1, start, end });
+            map[current].rounds.push({ round: map[current].rounds.length + 1, start, end });
           }
         }
       }
@@ -193,7 +195,8 @@ function readTrackedEvents(ss) {
 
   return Object.keys(map).map((name) => ({
     name,
-    rounds: map[name]
+    type: map[name].type || '',
+    rounds: map[name].rounds
       .sort((a, b) => a.start.localeCompare(b.start))
       .map((x, idx) => ({ round: idx + 1, start: x.start, end: x.end })),
   }));
@@ -235,41 +238,4 @@ function appendEventRound(ss, eventName, startISO, endISO) {
     }
   }
   return { ok: false, error: 'Không tìm thấy sự kiện "' + eventName + '" trong sheet Theo dõi ev.' };
-}
-
-function readHoanTuKimTieu(ss) {
-  const sheet = ss.getSheetByName('HOAN TỤ KIM TIÊU');
-  if (!sheet) return null;
-  const freeTickets = Number(sheet.getRange('B3').getValue()) || 30;
-  const pack98Lb = Number(sheet.getRange('A4').getValue()) || 98;
-  const pack98Tickets = Number(sheet.getRange('B4').getValue()) || 80;
-
-  const daysTickets = Number(sheet.getRange('F4').getValue()) || 15;
-  const bonus5DaysTickets = Number(sheet.getRange('G4').getValue()) || 5;
-  const totalLb = Number(sheet.getRange('H4').getValue()) || 30;
-  const dauDo = Number(sheet.getRange('F5').getValue()) || 15;
-
-  const parseNum = (v, fb) => {
-    const m = String(v || '').match(/\d+/);
-    return m ? Number(m[0]) : fb;
-  };
-  const caNhanTickets = parseNum(sheet.getRange('F8').getValue(), 32);
-  const caNhanManh = String(sheet.getRange('G8').getValue() || '15 mảnh kim năm tỵ').trim();
-  const tongMonTickets = parseNum(sheet.getRange('F9').getValue(), 42);
-  const tongMonManh = String(sheet.getRange('G9').getValue() || '25 mảnh kim năm tỵ').trim();
-
-  const rows = sheet.getRange('A9:C14').getValues();
-  const baoThiPacks = rows
-    .filter((r) => Number(r[0]) > 0)
-    .map((r) => ({
-      lb: Number(r[0]) || 0,
-      tickets: Number(r[1]) || 0,
-      maxQty: Number(r[2]) > 0 ? Number(r[2]) : undefined,
-    }));
-  return {
-    anhDang: { freeTickets, pack98Lb, pack98Tickets },
-    quaKimTieu: { daysTickets, bonus5DaysTickets, dauDo, totalLb },
-    tamVi: { caNhanTickets, caNhanManh, tongMonTickets, tongMonManh },
-    baoThiPacks,
-  };
 }

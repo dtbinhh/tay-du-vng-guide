@@ -1,9 +1,4 @@
-import {
-  EVENT_HISTORY,
-  HOAN_TU_KIM_TIEU_DATA,
-  type HoanTuKimTieuConfig,
-  type TrackedEvent,
-} from '../data/gameData';
+import { EVENT_HISTORY, type TrackedEvent } from '../data/gameData';
 
 export const DEFAULT_SHEET_API_URL =
   'https://script.google.com/macros/s/AKfycbznT67SWIoWu_9tkEz2t-SLCq95Xy_Rm15Vl77jFoMWLRmP8hUBuAsQB8JXzXsGJnvnBw/exec';
@@ -11,7 +6,6 @@ export const DEFAULT_SHEET_API_URL =
 export interface SyncedPayload {
   updatedAt: string;
   events?: TrackedEvent[];
-  hoanTuKimTieu?: HoanTuKimTieuConfig;
 }
 
 const URL_KEY = 'tdvng_sheet_api_url';
@@ -95,27 +89,14 @@ export function saveAdminPin(pin: string) {
   }
 }
 
-function normalizeHoanTu(raw?: Partial<HoanTuKimTieuConfig> | null): HoanTuKimTieuConfig {
-  if (!raw) return HOAN_TU_KIM_TIEU_DATA;
-  return {
-    anhDang: { ...HOAN_TU_KIM_TIEU_DATA.anhDang, ...(raw.anhDang || {}) },
-    quaKimTieu: { ...HOAN_TU_KIM_TIEU_DATA.quaKimTieu, ...(raw.quaKimTieu || {}) },
-    tamVi: { ...HOAN_TU_KIM_TIEU_DATA.tamVi, ...(raw.tamVi || {}) },
-    baoThiPacks:
-      Array.isArray(raw.baoThiPacks) && raw.baoThiPacks.length > 0
-        ? raw.baoThiPacks
-        : HOAN_TU_KIM_TIEU_DATA.baoThiPacks,
-  };
-}
-
 export function loadCachedSync(): SyncedPayload | null {
   try {
     const raw = localStorage.getItem(CACHE_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as SyncedPayload;
     return {
-      ...parsed,
-      hoanTuKimTieu: normalizeHoanTu(parsed.hoanTuKimTieu),
+      updatedAt: parsed.updatedAt,
+      events: Array.isArray(parsed.events) && parsed.events.length > 0 ? parsed.events : undefined,
     };
   } catch {
     return null;
@@ -224,7 +205,6 @@ export async function fetchSheetSync(
   const payload: SyncedPayload = {
     updatedAt: data.updatedAt || new Date().toISOString(),
     events: Array.isArray(data.events) && data.events.length > 0 ? data.events : EVENT_HISTORY,
-    hoanTuKimTieu: normalizeHoanTu(data.hoanTuKimTieu),
   };
   try {
     localStorage.setItem(CACHE_KEY, JSON.stringify(payload));

@@ -13,7 +13,6 @@ import {
   MANH_HA_HOAN_TRA,
   MANH_HA_SAT_CANH,
   QUA_TUYEN_DUYEN_MILESTONES,
-  type HoanTuKimTieuConfig,
 } from '../data/gameData';
 import type { LightboxImage } from './Lightbox';
 
@@ -36,7 +35,6 @@ interface EventCalculatorsProps {
   selectedEvent: EventTabKey;
   onSelectEvent: (key: EventTabKey) => void;
   onOpenImage: (images: LightboxImage[], index: number) => void;
-  syncedHoanTu?: HoanTuKimTieuConfig;
 }
 
 const HO_DU_MILESTONES = [
@@ -74,20 +72,8 @@ export function EventCalculators({
   selectedEvent,
   onSelectEvent,
   onOpenImage,
-  syncedHoanTu,
 }: EventCalculatorsProps) {
-  const htConfig = useMemo<HoanTuKimTieuConfig>(
-    () => ({
-      anhDang: { ...HOAN_TU_KIM_TIEU_DATA.anhDang, ...(syncedHoanTu?.anhDang || {}) },
-      quaKimTieu: { ...HOAN_TU_KIM_TIEU_DATA.quaKimTieu, ...(syncedHoanTu?.quaKimTieu || {}) },
-      tamVi: { ...HOAN_TU_KIM_TIEU_DATA.tamVi, ...(syncedHoanTu?.tamVi || {}) },
-      baoThiPacks:
-        Array.isArray(syncedHoanTu?.baoThiPacks) && syncedHoanTu.baoThiPacks.length > 0
-          ? syncedHoanTu.baoThiPacks
-          : HOAN_TU_KIM_TIEU_DATA.baoThiPacks,
-    }),
-    [syncedHoanTu]
-  );
+  const htConfig = HOAN_TU_KIM_TIEU_DATA;
 
   // Hoan Tu Kim Tieu state
   const [htIncludeFree, setHtIncludeFree] = useState(true);
@@ -103,19 +89,6 @@ export function EventCalculators({
       qty: 0,
     }))
   );
-
-  useEffect(() => {
-    if (syncedHoanTu?.baoThiPacks?.length) {
-      setHtPacks(
-        syncedHoanTu.baoThiPacks.map((p) => ({
-          lb: p.lb,
-          tickets: p.tickets,
-          maxQty: p.maxQty ?? (p as { defaultQty?: number }).defaultQty,
-          qty: 0,
-        }))
-      );
-    }
-  }, [syncedHoanTu]);
   // Lam Nguyet state
   const [lnPacks, setLnPacks] = useState<
     { lb: number; maxQty?: number; tickets: number; qty: number }[]

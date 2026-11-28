@@ -74,10 +74,25 @@ export function DashboardEvents({
 
   const today = useMemo(() => getTodayDate(), []);
 
+  const getTypeBadgeClass = (type?: string) => {
+    const t = (type || '').toLowerCase();
+    if (t.includes('tháng')) return 'bg-sky-500/15 text-sky-300 border-sky-500/30';
+    if (t.includes('quý')) return 'bg-purple-500/15 text-purple-300 border-purple-500/30';
+    if (t.includes('nửa năm')) return 'bg-rose-500/15 text-rose-300 border-rose-500/30';
+    if (t.includes('năm')) return 'bg-amber-500/15 text-amber-300 border-amber-500/30';
+    return 'bg-white/8 text-slate-300 border-white/12';
+  };
+
+  const defaultTypeMap = useMemo(
+    () => new Map(EVENT_HISTORY.map((e) => [e.name.trim().toLowerCase(), e.type || ''])),
+    []
+  );
+
   // Flatten all rounds & compute status matching the Google Sheet formula
   const recentEvents = useMemo(() => {
     const flat: {
       name: string;
+      type: string;
       round: number;
       start: string;
       end: string;
@@ -109,7 +124,16 @@ export function DashboardEvents({
           status = rem === 0 ? 'Đang diễn ra (hôm nay kết thúc)' : `Đang diễn ra (còn ${rem + 1} ngày)`;
         }
 
-        flat.push({ name: ev.name, round: r.round, start: r.start, end: r.end, status, kind, dist });
+        flat.push({
+          name: ev.name,
+          type: ev.type || defaultTypeMap.get(ev.name.trim().toLowerCase()) || '',
+          round: r.round,
+          start: r.start,
+          end: r.end,
+          status,
+          kind,
+          dist,
+        });
       }
     }
 
@@ -270,7 +294,13 @@ export function DashboardEvents({
                   <div className="min-w-0">
                     <div className="font-semibold text-sm text-slate-100 leading-snug">{ev.name}</div>
                     <div className="text-xs text-slate-400 mt-1 flex flex-wrap items-center gap-2">
-                      <span className="px-1.5 py-0.5 rounded bg-white/8 text-slate-300 whitespace-nowrap">Lần {ev.round}</span>
+                      {ev.type && (
+                        <span
+                          className={`px-2 py-0.5 rounded border text-[11px] font-medium whitespace-nowrap ${getTypeBadgeClass(ev.type)}`}
+                        >
+                          {ev.type}
+                        </span>
+                      )}
                       <span className="whitespace-nowrap">
                         {formatVNDate(ev.start)} → {formatVNDate(ev.end)}
                       </span>
@@ -402,9 +432,20 @@ export function DashboardEvents({
             >
               <div className="flex items-center justify-between gap-2 mb-2">
                 <h3 className="font-semibold text-sm text-amber-200 truncate">{ev.name}</h3>
-                <span className="text-[11px] px-2 py-0.5 rounded-full bg-white/8 text-slate-300 shrink-0">
-                  {ev.rounds.length} đợt
-                </span>
+                {(() => {
+                  const evType = ev.type || defaultTypeMap.get(ev.name.trim().toLowerCase()) || '';
+                  return evType ? (
+                    <span
+                      className={`text-[11px] px-2 py-0.5 rounded-full border shrink-0 ${getTypeBadgeClass(evType)}`}
+                    >
+                      {evType}
+                    </span>
+                  ) : (
+                    <span className="text-[11px] px-2 py-0.5 rounded-full bg-white/8 text-slate-300 shrink-0">
+                      {ev.rounds.length} đợt
+                    </span>
+                  );
+                })()}
               </div>
               <div className="space-y-1">
                 {ev.rounds.map((r) => (

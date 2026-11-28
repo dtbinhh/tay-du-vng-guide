@@ -378,7 +378,6 @@ export default function App() {
             selectedEvent={selectedEvent}
             onSelectEvent={setSelectedEvent}
             onOpenImage={openImage}
-            syncedHoanTu={synced?.hoanTuKimTieu}
           />
         )}
       </main>

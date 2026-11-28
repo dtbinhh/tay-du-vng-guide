@@ -9,12 +9,14 @@ export interface EventRound {
 
 export interface TrackedEvent {
   name: string;
+  type?: string;
   rounds: EventRound[];
 }
 
 export const EVENT_HISTORY: TrackedEvent[] = [
   {
     "name": "SA KIM KỲ NGỘ",
+    "type": "SK tháng",
     "rounds": [
       {
         "round": 1,
@@ -30,6 +32,7 @@ export const EVENT_HISTORY: TrackedEvent[] = [
   },
   {
     "name": "KIM NGỌC MÃN ĐƯỜNG",
+    "type": "SK tháng",
     "rounds": [
       {
         "round": 1,
@@ -45,6 +48,7 @@ export const EVENT_HISTORY: TrackedEvent[] = [
   },
   {
     "name": "HOÀN TRẢ TÍCH NẠP x THIÊN TỨ",
+    "type": "SK tháng",
     "rounds": [
       {
         "round": 1,
@@ -65,6 +69,7 @@ export const EVENT_HISTORY: TrackedEvent[] = [
   },
   {
     "name": "TOÀN CƠ NGŨ HÀNH",
+    "type": "SK tháng",
     "rounds": [
       {
         "round": 1,
@@ -75,6 +80,7 @@ export const EVENT_HISTORY: TrackedEvent[] = [
   },
   {
     "name": "NGẠO LAI THẦN THẠCH",
+    "type": "SK tháng",
     "rounds": [
       {
         "round": 1,
@@ -90,6 +96,7 @@ export const EVENT_HISTORY: TrackedEvent[] = [
   },
   {
     "name": "TRÂN HƯU HIẾN BẢO",
+    "type": "SK tháng",
     "rounds": [
       {
         "round": 1,
@@ -115,6 +122,7 @@ export const EVENT_HISTORY: TrackedEvent[] = [
   },
   {
     "name": "ĐẠI MẠC TẦM TRÂN",
+    "type": "SK tháng",
     "rounds": [
       {
         "round": 1,
@@ -135,6 +143,7 @@ export const EVENT_HISTORY: TrackedEvent[] = [
   },
   {
     "name": "NHÃ TẬP KHAI THÁI",
+    "type": "SK tháng",
     "rounds": [
       {
         "round": 1,
@@ -145,14 +154,20 @@ export const EVENT_HISTORY: TrackedEvent[] = [
   },
   {
     "name": "HOAN TỤ KIM TIÊU",
+    "type": "SK quý",
     "rounds": [
       {
         "round": 1,
+        "start": "2026-04-01",
+        "end": "2026-04-06"
+      },
+      {
+        "round": 2,
         "start": "2026-06-26",
         "end": "2026-07-01"
       },
       {
-        "round": 2,
+        "round": 3,
         "start": "2026-11-28",
         "end": "2026-12-02"
       }
@@ -160,6 +175,7 @@ export const EVENT_HISTORY: TrackedEvent[] = [
   },
   {
     "name": "QUỲNH TIÊU THỊNH HỘI",
+    "type": "SK tháng",
     "rounds": [
       {
         "round": 1,
@@ -175,6 +191,7 @@ export const EVENT_HISTORY: TrackedEvent[] = [
   },
   {
     "name": "THÚY DÃ TẦM XUÂN",
+    "type": "SK quý",
     "rounds": [
       {
         "round": 1,
@@ -185,6 +202,7 @@ export const EVENT_HISTORY: TrackedEvent[] = [
   },
   {
     "name": "VẠN TƯỢNG THIÊN DIỄN",
+    "type": "SK tháng",
     "rounds": [
       {
         "round": 1,
@@ -195,6 +213,7 @@ export const EVENT_HISTORY: TrackedEvent[] = [
   },
   {
     "name": "LÃM NGUYỆT",
+    "type": "SK quý",
     "rounds": [
       {
         "round": 1,
@@ -210,6 +229,7 @@ export const EVENT_HISTORY: TrackedEvent[] = [
   },
   {
     "name": "MẠNH HẠ HOAN CA",
+    "type": "SK quý",
     "rounds": [
       {
         "round": 1,
@@ -225,6 +245,7 @@ export const EVENT_HISTORY: TrackedEvent[] = [
   },
   {
     "name": "HỒ TÂN DU VIÊN",
+    "type": "SK quý",
     "rounds": [
       {
         "round": 1,
@@ -235,6 +256,7 @@ export const EVENT_HISTORY: TrackedEvent[] = [
   },
   {
     "name": "VÒNG QUAY LÂM LANG",
+    "type": "SK tháng",
     "rounds": [
       {
         "round": 1,
@@ -245,6 +267,7 @@ export const EVENT_HISTORY: TrackedEvent[] = [
   },
   {
     "name": "TIÊN VỰC PHONG HỎA",
+    "type": "SK nửa năm",
     "rounds": [
       {
         "round": 1,
@@ -255,6 +278,7 @@ export const EVENT_HISTORY: TrackedEvent[] = [
   },
   {
     "name": "SỰ KIỆN VƯỜN THỎ",
+    "type": "SK tháng",
     "rounds": [
       {
         "round": 1,
@@ -275,6 +299,7 @@ export const EVENT_HISTORY: TrackedEvent[] = [
   },
   {
     "name": "LINH KỴ TẦM TUNG",
+    "type": "SK tháng",
     "rounds": [
       {
         "round": 1,
@@ -285,9 +310,10 @@ export const EVENT_HISTORY: TrackedEvent[] = [
   },
   {
     "name": "Quay tướng kim",
+    "type": "SK tháng",
     "rounds": [
       {
-        "round": 3,
+        "round": 1,
         "start": "2026-09-17",
         "end": "2026-09-19"
       },
@@ -297,7 +323,7 @@ export const EVENT_HISTORY: TrackedEvent[] = [
         "end": "2026-10-24"
       },
       {
-        "round": 1,
+        "round": 3,
         "start": "2026-11-13",
         "end": "2026-11-15"
       }
@@ -305,6 +331,7 @@ export const EVENT_HISTORY: TrackedEvent[] = [
   },
   {
     "name": "CÔN LÔN TIÊN CẢNH",
+    "type": "SK nửa năm",
     "rounds": [
       {
         "round": 1,
@@ -320,6 +347,7 @@ export const EVENT_HISTORY: TrackedEvent[] = [
   },
   {
     "name": "THẤT TỊCH",
+    "type": "SK nửa năm",
     "rounds": [
       {
         "round": 1,
@@ -330,6 +358,7 @@ export const EVENT_HISTORY: TrackedEvent[] = [
   },
   {
     "name": "Quỹ Linh Kỵ",
+    "type": "Không phải sự kiện",
     "rounds": [
       {
         "round": 1,
@@ -340,6 +369,7 @@ export const EVENT_HISTORY: TrackedEvent[] = [
   },
   {
     "name": "Ev sinh nhật",
+    "type": "SK năm",
     "rounds": [
       {
         "round": 1,
@@ -350,6 +380,7 @@ export const EVENT_HISTORY: TrackedEvent[] = [
   },
   {
     "name": "ĐỈNH CAO ĐỐI QUYẾT",
+    "type": "SK nửa năm",
     "rounds": [
       {
         "round": 1,
@@ -360,6 +391,7 @@ export const EVENT_HISTORY: TrackedEvent[] = [
   },
   {
     "name": "PHONG ĐÔ HUYỀN DIỆU",
+    "type": "SK nửa năm",
     "rounds": [
       {
         "round": 1,
