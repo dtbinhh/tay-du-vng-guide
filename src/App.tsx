@@ -1,7 +1,10 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Calculator,
   CalendarDays,
+  CheckCircle2,
+  Cloud,
+  RefreshCw,
   Search,
   Sparkles,
   Swords,
@@ -18,6 +21,16 @@ import {
   LAM_LANG_EVENTS,
   THIEN_KY_GROUPS,
 } from './data/gameData';
+import {
+  fetchSheetSync,
+  getConfiguredApiUrl,
+  getScheduledSyncSlots,
+  getSyncCooldownRemaining,
+  isSlotSyncDue,
+  loadCachedSync,
+  saveAdminPin,
+  type SyncedPayload,
+} from './services/sheetSync';
 
 type TabId = 'events' | 'heroes' | 'calculators';
 
@@ -30,10 +43,82 @@ const NAV_ITEMS: { id: TabId; label: string; shortLabel: string; icon: typeof Ca
 export default function App() {
   const [activeTab, setActiveTab] = useState<TabId>('events');
   const [selectedResource, setSelectedResource] = useState<ResourceTabKey>('tuong');
-  const [selectedEvent, setSelectedEvent] = useState<EventTabKey>('lam-lang');
+  const [selectedEvent, setSelectedEvent] = useState<EventTabKey>('hoan-tu');
   const [searchOpen, setSearchOpen] = useState(false);
   const [globalQuery, setGlobalQuery] = useState('');
   const [lightbox, setLightbox] = useState<{ images: LightboxImage[]; index: number } | null>(null);
+
+  // Google Sheet Auto-Sync state
+  const [synced, setSynced] = useState<SyncedPayload | null>(() => loadCachedSync());
+  const [syncing, setSyncing] = useState(false);
+  const [syncCooldownSec, setSyncCooldownSec] = useState(() =>
+    Math.ceil(getSyncCooldownRemaining() / 1000)
+  );
+  const [syncError, setSyncError] = useState<string | null>(null);
+  const [syncModalOpen, setSyncModalOpen] = useState(false);
+  const [pinInput, setPinInput] = useState('');
+
+  useEffect(() => {
+    if (syncCooldownSec <= 0) return;
+    const t = setInterval(() => {
+      setSyncCooldownSec(Math.ceil(getSyncCooldownRemaining() / 1000));
+    }, 1000);
+    return () => clearInterval(t);
+  }, [syncCooldownSec]);
+
+  const runSync = useCallback(
+    async (overrideUrl?: string, manual = false, pin?: string): Promise<boolean> => {
+      const targetUrl = (overrideUrl ?? getConfiguredApiUrl()).trim();
+      if (!targetUrl) return false;
+      setSyncing(true);
+      setSyncError(null);
+      try {
+        const payload = await fetchSheetSync(targetUrl, { manual, pin });
+        setSynced(payload);
+        if (manual) {
+          setSyncCooldownSec(Math.ceil(getSyncCooldownRemaining() / 1000));
+        }
+        return true;
+      } catch (err) {
+        setSyncError(err instanceof Error ? err.message : String(err));
+        return false;
+      } finally {
+        setSyncing(false);
+      }
+    },
+    []
+  );
+
+  const [nextAutoSyncLabel, setNextAutoSyncLabel] = useState(
+    () => getScheduledSyncSlots().nextSlotLabel
+  );
+
+  // Scheduled auto-sync every 2 hours starting from 04:00 UTC+7
+  // Does NOT spam on page reload — only syncs once per 2-hour slot.
+  useEffect(() => {
+    if (!getConfiguredApiUrl()) return;
+
+    let timerId: ReturnType<typeof setTimeout> | undefined;
+
+    const scheduleNext = () => {
+      const { msUntilNextSlot, nextSlotLabel } = getScheduledSyncSlots();
+      setNextAutoSyncLabel(nextSlotLabel);
+      timerId = setTimeout(async () => {
+        await runSync(undefined, false);
+        scheduleNext();
+      }, msUntilNextSlot + 500);
+    };
+
+    const cached = loadCachedSync();
+    if (isSlotSyncDue(cached?.updatedAt)) {
+      runSync(undefined, false);
+    }
+    scheduleNext();
+
+    return () => {
+      if (timerId) clearTimeout(timerId);
+    };
+  }, [runSync]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -41,11 +126,16 @@ export default function App() {
         e.preventDefault();
         setSearchOpen((v) => !v);
       }
-      if (e.key === 'Escape') setSearchOpen(false);
+      if (e.key === 'Escape') {
+        setSearchOpen(false);
+        setSyncModalOpen(false);
+      }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, []);
+
+  const currentEvents = synced?.events && synced.events.length > 0 ? synced.events : EVENT_HISTORY;
 
   const searchResults = useMemo(() => {
     const q = globalQuery.trim().toLowerCase();
@@ -59,7 +149,7 @@ export default function App() {
       badge: string;
     }[] = [];
 
-    for (const ev of EVENT_HISTORY) {
+    for (const ev of currentEvents) {
       if (ev.name.toLowerCase().includes(q)) {
         results.push({
           title: ev.name,
@@ -142,6 +232,7 @@ export default function App() {
       }
     }
     const quickEvents: { key: EventTabKey; title: string; keywords: string }[] = [
+      { key: 'hoan-tu', title: 'Hoan Tụ Kim Tiêu', keywords: 'hoan tu kim tieu anh dang bao thi ve' },
       { key: 'kim-tuong', title: 'Quay Kim Tướng', keywords: 'kim tuong ve manh' },
       { key: 'tich-xa', title: 'Tích Xả', keywords: 'tich xa thien giac hoan luoi bat ma' },
       { key: 'ho-du', title: 'Hồ Du Tân Viên', keywords: 'ho du tan vien hoa dang lien hoa du long' },
@@ -165,10 +256,24 @@ export default function App() {
     }
 
     return results.slice(0, 15);
-  }, [globalQuery]);
+  }, [globalQuery, currentEvents]);
 
   function openImage(images: LightboxImage[], index: number) {
     setLightbox({ images, index });
+  }
+
+  async function handleSaveSyncSettings(e: React.FormEvent) {
+    e.preventDefault();
+    const cleanPin = pinInput.trim();
+    if (!cleanPin) {
+      setSyncError('Vui lòng nhập mã PIN để thực hiện đồng bộ.');
+      return;
+    }
+    saveAdminPin(cleanPin);
+    const ok = await runSync(undefined, true, cleanPin);
+    if (ok) {
+      setPinInput('');
+    }
   }
 
   return (
@@ -242,7 +347,25 @@ export default function App() {
 
       {/* Main Content */}
       <main className="flex-1 min-w-0 px-4 sm:px-6 lg:px-8 py-5 sm:py-7 pb-24 lg:pb-10 max-w-7xl w-full mx-auto">
-        {activeTab === 'events' && <DashboardEvents />}
+        {activeTab === 'events' && (
+          <DashboardEvents
+            syncedEvents={synced?.events}
+            syncing={syncing}
+            syncCooldownSec={syncCooldownSec}
+            lastSyncedAt={synced?.updatedAt}
+            nextAutoSyncLabel={nextAutoSyncLabel}
+            onRefreshSync={() => {
+              setSyncError(null);
+              setPinInput('');
+              setSyncModalOpen(true);
+            }}
+            onOpenSyncModal={() => {
+              setSyncError(null);
+              setPinInput('');
+              setSyncModalOpen(true);
+            }}
+          />
+        )}
         {activeTab === 'heroes' && (
           <HeroUpgrades
             selectedResource={selectedResource}
@@ -254,6 +377,7 @@ export default function App() {
             selectedEvent={selectedEvent}
             onSelectEvent={setSelectedEvent}
             onOpenImage={openImage}
+            syncedHoanTu={synced?.hoanTuKimTieu}
           />
         )}
       </main>
@@ -285,6 +409,85 @@ export default function App() {
         </div>
       </nav>
 
+      {/* Sync Settings Modal */}
+      {syncModalOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center px-4 bg-black/75 backdrop-blur-sm"
+          onClick={() => setSyncModalOpen(false)}
+        >
+          <form
+            onSubmit={handleSaveSyncSettings}
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-lg rounded-2xl border border-amber-500/30 bg-[#121722] p-5 space-y-4 shadow-2xl"
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 font-semibold text-white">
+                <Cloud className="w-5 h-5 text-amber-400" />
+                Tự Động Đồng Bộ Google Sheet
+              </div>
+              <button
+                type="button"
+                onClick={() => setSyncModalOpen(false)}
+                className="p-1 text-slate-400 hover:text-white"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <p className="text-xs text-slate-400 leading-relaxed">
+              Nhập <strong>Mã PIN</strong> để làm mới dữ liệu trực tiếp từ Google Sheet (chống spam đồng bộ liên tục).
+            </p>
+
+            <div>
+              <label className="block text-xs text-slate-300 mb-1">Mã PIN đồng bộ *</label>
+              <input
+                type="password"
+                autoFocus
+                required
+                value={pinInput}
+                onChange={(e) => setPinInput(e.target.value)}
+                placeholder="Nhập mã PIN quản trị..."
+                className="w-full rounded-xl bg-[#0b0e14] border border-amber-500/40 px-3 py-2.5 text-sm text-white focus:outline-none focus:border-amber-400"
+              />
+            </div>
+
+            {syncError && (
+              <div className="text-xs px-3 py-2 rounded-lg bg-rose-500/15 border border-rose-500/30 text-rose-300">
+                {syncError}
+              </div>
+            )}
+            {synced?.updatedAt && !syncError && (
+              <div className="text-xs px-3 py-2 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 shrink-0" />
+                Đã đồng bộ thành công lúc {new Date(synced.updatedAt).toLocaleString('vi-VN')}
+              </div>
+            )}
+
+            <div className="flex justify-end gap-2 pt-1">
+              <button
+                type="button"
+                onClick={() => setSyncModalOpen(false)}
+                className="px-3.5 py-2 rounded-xl bg-white/5 text-slate-300 text-sm cursor-pointer"
+              >
+                Đóng
+              </button>
+              <button
+                type="submit"
+                disabled={syncing || syncCooldownSec > 0}
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-semibold text-sm cursor-pointer disabled:opacity-50"
+              >
+                <RefreshCw className={`w-4 h-4 ${syncing ? 'animate-spin' : ''}`} />
+                {syncing
+                  ? 'Đang đồng bộ...'
+                  : syncCooldownSec > 0
+                  ? `Đợi ${syncCooldownSec}s`
+                  : 'Xác nhận & Đồng bộ'}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
       {/* Global Search Modal */}
       {searchOpen && (
         <div
@@ -302,7 +505,7 @@ export default function App() {
                 autoFocus
                 value={globalQuery}
                 onChange={(e) => setGlobalQuery(e.target.value)}
-                placeholder="Tìm sự kiện, Lâm Lang, Kim Tướng, nâng cấp tướng..."
+                placeholder="Tìm sự kiện, Hoan Tụ Kim Tiêu, Lâm Lang, Thiên Kỹ..."
                 className="flex-1 bg-transparent text-sm text-white placeholder:text-slate-500 focus:outline-none"
               />
               <button
@@ -315,7 +518,7 @@ export default function App() {
             <div className="max-h-80 overflow-y-auto divide-y divide-white/6">
               {globalQuery.trim() === '' ? (
                 <div className="p-6 text-center text-xs text-slate-400">
-                  Nhập từ khóa bất kỳ (ví dụ: <em>Vườn Thỏ</em>, <em>Kim Tướng</em>, <em>Thần Ma</em>, <em>Minh Văn</em>...)
+                  Nhập từ khóa bất kỳ (ví dụ: <em>Hoan Tụ Kim Tiêu</em>, <em>Thiên Kỹ</em>, <em>Thần Ma</em>, <em>Lâm Lang</em>...)
                 </div>
               ) : searchResults.length === 0 ? (
                 <div className="p-6 text-center text-xs text-slate-400">

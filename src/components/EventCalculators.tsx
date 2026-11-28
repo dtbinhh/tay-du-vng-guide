@@ -1,16 +1,19 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Calculator, Clock, Gift, Info, Search, Sparkles, ZoomIn } from 'lucide-react';
 import {
   CUU_U_IMAGES,
   DOI_QUYET_RANKS,
   EV_SINH_NHAT_IMAGES,
+  HOAN_TU_KIM_TIEU_DATA,
   LAM_LANG_EVENTS,
   MANH_HA_HOAN_TRA,
   MANH_HA_SAT_CANH,
+  type HoanTuKimTieuConfig,
 } from '../data/gameData';
 import type { LightboxImage } from './Lightbox';
 
 export type EventTabKey =
+  | 'hoan-tu'
   | 'lam-lang'
   | 'kim-tuong'
   | 'doi-quyet'
@@ -27,9 +30,11 @@ interface EventCalculatorsProps {
   selectedEvent: EventTabKey;
   onSelectEvent: (key: EventTabKey) => void;
   onOpenImage: (images: LightboxImage[], index: number) => void;
+  syncedHoanTu?: HoanTuKimTieuConfig;
 }
 
 const EVENT_TABS: { id: EventTabKey; label: string }[] = [
+  { id: 'hoan-tu', label: 'Hoan Tụ Kim Tiêu' },
   { id: 'lam-lang', label: 'Lâm Lang Tiên Các' },
   { id: 'kim-tuong', label: 'Kim Tướng' },
   { id: 'doi-quyet', label: 'Đối Quyết Đỉnh Cao' },
@@ -47,7 +52,27 @@ export function EventCalculators({
   selectedEvent,
   onSelectEvent,
   onOpenImage,
+  syncedHoanTu,
 }: EventCalculatorsProps) {
+  const htConfig = syncedHoanTu || HOAN_TU_KIM_TIEU_DATA;
+
+  // Hoan Tu Kim Tieu state
+  const [htIncludeFree, setHtIncludeFree] = useState(true);
+  const [htInclude98, setHtInclude98] = useState(true);
+  const [htIncludeQua5Ngay, setHtIncludeQua5Ngay] = useState(true);
+  const [htIncludeCaNhan, setHtIncludeCaNhan] = useState(true);
+  const [htIncludeTongMon, setHtIncludeTongMon] = useState(true);
+  const [htPacks, setHtPacks] = useState(() =>
+    htConfig.baoThiPacks.map((p) => ({ lb: p.lb, tickets: p.tickets, qty: p.defaultQty }))
+  );
+
+  useEffect(() => {
+    if (syncedHoanTu?.baoThiPacks?.length) {
+      setHtPacks(
+        syncedHoanTu.baoThiPacks.map((p) => ({ lb: p.lb, tickets: p.tickets, qty: p.defaultQty }))
+      );
+    }
+  }, [syncedHoanTu]);
   // Lam Lang state
   const [llSearch, setLlSearch] = useState('');
   const [llEventIdx, setLlEventIdx] = useState(0);
@@ -126,6 +151,45 @@ export function EventCalculators({
     { lb: 198, qty: 2, tran: 15 },
     { lb: 328, qty: 3, tran: 20 },
     { lb: 648, qty: 2, tran: 35 },
+  ]);
+
+  const htTotals = useMemo(() => {
+    const anhDangLb = htInclude98 ? htConfig.anhDang.pack98Lb : 0;
+    const anhDangTickets =
+      (htIncludeFree ? htConfig.anhDang.freeTickets : 0) +
+      (htInclude98 ? htConfig.anhDang.pack98Tickets : 0);
+    const quaLb = htIncludeQua5Ngay ? htConfig.quaKimTieu.totalLb : 0;
+    const quaTickets = htIncludeQua5Ngay
+      ? htConfig.quaKimTieu.daysTickets + htConfig.quaKimTieu.bonus5DaysTickets
+      : 0;
+    const dauDo = htIncludeQua5Ngay ? htConfig.quaKimTieu.dauDo : 0;
+    const tamViTickets =
+      (htIncludeCaNhan ? htConfig.tamVi.caNhanTickets : 0) +
+      (htIncludeTongMon ? htConfig.tamVi.tongMonTickets : 0);
+    const baoThi = htPacks.reduce(
+      (acc, p) => ({ lb: acc.lb + p.lb * p.qty, tickets: acc.tickets + p.tickets * p.qty }),
+      { lb: 0, tickets: 0 }
+    );
+    return {
+      anhDangLb,
+      anhDangTickets,
+      quaLb,
+      quaTickets,
+      dauDo,
+      tamViTickets,
+      baoThiLb: baoThi.lb,
+      baoThiTickets: baoThi.tickets,
+      totalLb: anhDangLb + quaLb + baoThi.lb,
+      totalTickets: anhDangTickets + quaTickets + tamViTickets + baoThi.tickets,
+    };
+  }, [
+    htIncludeFree,
+    htInclude98,
+    htIncludeQua5Ngay,
+    htIncludeCaNhan,
+    htIncludeTongMon,
+    htPacks,
+    htConfig,
   ]);
 
   // Computations
@@ -217,6 +281,202 @@ export function EventCalculators({
           </button>
         ))}
       </div>
+
+      {/* Hoan Tu Kim Tieu */}
+      {selectedEvent === 'hoan-tu' && (
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          {/* Kim Tieu Bao Thi */}
+          <div className="lg:col-span-7 rounded-2xl border border-white/10 bg-[#121722]/90 p-4 sm:p-5 space-y-3">
+            <div className="flex items-center justify-between">
+              <h2 className="font-semibold text-white">Kim Tiêu Bảo Thị (Gói Lục Bảo)</h2>
+              <span className="text-xs text-slate-400">Nhập SL gói mua</span>
+            </div>
+            {htPacks.map((p, idx) => (
+              <div
+                key={p.lb}
+                className="flex items-center justify-between gap-2 rounded-xl bg-black/30 border border-white/8 px-3.5 py-2.5"
+              >
+                <div>
+                  <div className="text-sm font-semibold text-white">Gói {p.lb} Lục Bảo</div>
+                  <div className="text-xs text-slate-400">{p.tickets} vé / gói</div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="number"
+                    min={0}
+                    value={p.qty}
+                    onChange={(e) => {
+                      const v = Math.max(0, Number(e.target.value) || 0);
+                      setHtPacks((prev) => prev.map((x, i) => (i === idx ? { ...x, qty: v } : x)));
+                    }}
+                    className="w-18 rounded-lg bg-[#0b0e14] border border-white/15 px-2 py-1 text-center font-mono text-sm text-white"
+                  />
+                  <span className="w-16 text-right font-mono text-xs text-amber-300">
+                    {(p.lb * p.qty).toLocaleString()} lb
+                  </span>
+                  <span className="w-16 text-right font-mono text-xs font-semibold text-emerald-400">
+                    {(p.tickets * p.qty).toLocaleString()} vé
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Kim Tieu Anh Dang + Total */}
+          <div className="lg:col-span-5 space-y-5 self-start">
+            <div className="rounded-2xl border border-white/10 bg-[#121722]/90 p-4 sm:p-5 space-y-3">
+              <h2 className="font-semibold text-white">Kim Tiêu Ánh Đăng</h2>
+              <label className="flex items-center justify-between rounded-xl bg-black/30 border border-white/8 px-3.5 py-2.5 cursor-pointer">
+                <span className="flex items-center gap-2.5 text-sm text-slate-200">
+                  <input
+                    type="checkbox"
+                    checked={htIncludeFree}
+                    onChange={(e) => setHtIncludeFree(e.target.checked)}
+                    className="accent-amber-500 w-4 h-4"
+                  />
+                  Nhận Free Ánh Đăng
+                </span>
+                <span className="font-mono text-sm font-semibold text-emerald-400">
+                  +{htConfig.anhDang.freeTickets} vé
+                </span>
+              </label>
+              <label className="flex items-center justify-between rounded-xl bg-black/30 border border-white/8 px-3.5 py-2.5 cursor-pointer">
+                <span className="flex items-center gap-2.5 text-sm text-slate-200">
+                  <input
+                    type="checkbox"
+                    checked={htInclude98}
+                    onChange={(e) => setHtInclude98(e.target.checked)}
+                    className="accent-amber-500 w-4 h-4"
+                  />
+                  Mở khóa gói {htConfig.anhDang.pack98Lb} Lục Bảo
+                </span>
+                <span className="font-mono text-sm font-semibold text-emerald-400">
+                  +{htConfig.anhDang.pack98Tickets} vé
+                </span>
+              </label>
+            </div>
+
+            {/* Qua Kim Tieu 5 ngay */}
+            <div className="rounded-2xl border border-white/10 bg-[#121722]/90 p-4 sm:p-5 space-y-3">
+              <div className="flex items-center justify-between">
+                <h2 className="font-semibold text-white">Quà Kim Tiêu (5 ngày)</h2>
+                <span className="text-xs text-amber-300 font-mono">
+                  Tổng: {htConfig.quaKimTieu.totalLb} lb
+                </span>
+              </div>
+              <label className="flex items-start justify-between gap-2 rounded-xl bg-black/30 border border-white/8 px-3.5 py-2.5 cursor-pointer">
+                <span className="flex items-start gap-2.5 text-sm text-slate-200">
+                  <input
+                    type="checkbox"
+                    checked={htIncludeQua5Ngay}
+                    onChange={(e) => setHtIncludeQua5Ngay(e.target.checked)}
+                    className="accent-amber-500 w-4 h-4 mt-0.5"
+                  />
+                  <span>
+                    Mua đủ 5 ngày ({htConfig.quaKimTieu.daysTickets} vé + thưởng{' '}
+                    {htConfig.quaKimTieu.bonus5DaysTickets} vé)
+                    <span className="block text-xs text-rose-300 mt-0.5">
+                      +{htConfig.quaKimTieu.dauDo} Đậu đỏ
+                    </span>
+                  </span>
+                </span>
+                <span className="font-mono text-sm font-semibold text-emerald-400 shrink-0">
+                  +{htConfig.quaKimTieu.daysTickets + htConfig.quaKimTieu.bonus5DaysTickets} vé
+                </span>
+              </label>
+            </div>
+
+            {/* Kim Tieu Tam Vi */}
+            <div className="rounded-2xl border border-white/10 bg-[#121722]/90 p-4 sm:p-5 space-y-3">
+              <h2 className="font-semibold text-white">Kim Tiêu Tầm Vị (Nhiệm vụ)</h2>
+              <label className="flex items-start justify-between gap-2 rounded-xl bg-black/30 border border-white/8 px-3.5 py-2.5 cursor-pointer">
+                <span className="flex items-start gap-2.5 text-sm text-slate-200">
+                  <input
+                    type="checkbox"
+                    checked={htIncludeCaNhan}
+                    onChange={(e) => setHtIncludeCaNhan(e.target.checked)}
+                    className="accent-amber-500 w-4 h-4 mt-0.5"
+                  />
+                  <span>
+                    Nhiệm vụ cá nhân
+                    <span className="block text-xs text-amber-300 mt-0.5">
+                      +{htConfig.tamVi.caNhanManh}
+                    </span>
+                  </span>
+                </span>
+                <span className="font-mono text-sm font-semibold text-emerald-400 shrink-0">
+                  +{htConfig.tamVi.caNhanTickets} vé
+                </span>
+              </label>
+              <label className="flex items-start justify-between gap-2 rounded-xl bg-black/30 border border-white/8 px-3.5 py-2.5 cursor-pointer">
+                <span className="flex items-start gap-2.5 text-sm text-slate-200">
+                  <input
+                    type="checkbox"
+                    checked={htIncludeTongMon}
+                    onChange={(e) => setHtIncludeTongMon(e.target.checked)}
+                    className="accent-amber-500 w-4 h-4 mt-0.5"
+                  />
+                  <span>
+                    Nhiệm vụ tông môn
+                    <span className="block text-xs text-amber-300 mt-0.5">
+                      +{htConfig.tamVi.tongMonManh}
+                    </span>
+                  </span>
+                </span>
+                <span className="font-mono text-sm font-semibold text-emerald-400 shrink-0">
+                  +{htConfig.tamVi.tongMonTickets} vé
+                </span>
+              </label>
+            </div>
+
+            <div className="rounded-2xl border border-amber-500/25 bg-[#121722]/95 p-4 sm:p-5 space-y-3">
+              <h2 className="font-semibold text-amber-300 text-sm">Tổng Kết Hoan Tụ Kim Tiêu</h2>
+              <div className="space-y-1.5 text-xs text-slate-300">
+                <div className="flex justify-between">
+                  <span>Ánh Đăng:</span>
+                  <span className="font-mono">
+                    {htTotals.anhDangLb} lb • <strong className="text-emerald-300">{htTotals.anhDangTickets} vé</strong>
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Quà Kim Tiêu (5 ngày):</span>
+                  <span className="font-mono">
+                    {htTotals.quaLb} lb • <strong className="text-emerald-300">{htTotals.quaTickets} vé</strong>
+                    {htTotals.dauDo > 0 && <span className="text-rose-300"> • {htTotals.dauDo} đậu đỏ</span>}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Tầm Vị (Nhiệm vụ):</span>
+                  <span className="font-mono">
+                    <strong className="text-emerald-300">{htTotals.tamViTickets} vé</strong>
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Bảo Thị:</span>
+                  <span className="font-mono">
+                    {htTotals.baoThiLb.toLocaleString()} lb •{' '}
+                    <strong className="text-emerald-300">{htTotals.baoThiTickets.toLocaleString()} vé</strong>
+                  </span>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3 pt-1">
+                <div className="rounded-xl bg-amber-500/12 border border-amber-500/30 p-3.5 text-center">
+                  <div className="text-xs text-slate-400">Tổng Lục Bảo</div>
+                  <div className="text-2xl font-bold text-amber-400 font-mono">
+                    {htTotals.totalLb.toLocaleString()}
+                  </div>
+                </div>
+                <div className="rounded-xl bg-emerald-500/12 border border-emerald-500/30 p-3.5 text-center">
+                  <div className="text-xs text-slate-400">Tổng Vé</div>
+                  <div className="text-2xl font-bold text-emerald-400 font-mono">
+                    {htTotals.totalTickets.toLocaleString()}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Lam Lang Tien Cac */}
       {selectedEvent === 'lam-lang' && (

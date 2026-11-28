@@ -1,17 +1,16 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   Calendar,
   Clock,
+  Cloud,
   Flame,
-  Plus,
-  RotateCcw,
+  RefreshCw,
   Search,
   Sparkles,
   TrendingUp,
 } from 'lucide-react';
 import { EVENT_HISTORY, type TrackedEvent } from '../data/gameData';
-
-const STORAGE_KEY = 'tdvng_custom_events_v1';
+import { getConfiguredApiUrl } from '../services/sheetSync';
 
 function parseISODate(iso: string): Date {
   const [y, m, d] = iso.split('-').map(Number);
@@ -42,23 +41,36 @@ function addDaysISO(iso: string, days: number): string {
   return `${y}-${m}-${d}`;
 }
 
-export function DashboardEvents() {
-  const [events, setEvents] = useState<TrackedEvent[]>(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved) return JSON.parse(saved);
-    } catch {
-      // ignore
+interface DashboardEventsProps {
+  syncedEvents?: TrackedEvent[];
+  syncing?: boolean;
+  syncCooldownSec?: number;
+  lastSyncedAt?: string | null;
+  nextAutoSyncLabel?: string;
+  onRefreshSync?: () => void;
+  onOpenSyncModal?: () => void;
+}
+
+export function DashboardEvents({
+  syncedEvents,
+  syncing,
+  syncCooldownSec = 0,
+  lastSyncedAt,
+  nextAutoSyncLabel,
+  onRefreshSync,
+  onOpenSyncModal,
+}: DashboardEventsProps) {
+  const [events, setEvents] = useState<TrackedEvent[]>(() =>
+    syncedEvents && syncedEvents.length > 0 ? syncedEvents : EVENT_HISTORY
+  );
+
+  useEffect(() => {
+    if (syncedEvents && syncedEvents.length > 0) {
+      setEvents(syncedEvents);
     }
-    return EVENT_HISTORY;
-  });
+  }, [syncedEvents]);
 
   const [query, setQuery] = useState('');
-  const [showAddForm, setShowAddForm] = useState(false);
-  const [newName, setNewName] = useState(EVENT_HISTORY[0]?.name || '');
-  const [customName, setCustomName] = useState('');
-  const [newStart, setNewStart] = useState(() => new Date().toISOString().slice(0, 10));
-  const [newEnd, setNewEnd] = useState(() => new Date().toISOString().slice(0, 10));
 
   const today = useMemo(() => getTodayDate(), []);
 
@@ -154,35 +166,6 @@ export function DashboardEvents() {
   const activeCount = recentEvents.filter((e) => e.kind === 'active').length;
   const dueSoonCount = predictions.filter((p) => p.diff <= 7).length;
 
-  function handleAddRound(e: React.FormEvent) {
-    e.preventDefault();
-    const targetName = (newName === '__custom__' ? customName : newName).trim();
-    if (!targetName || !newStart) return;
-    const updated = [...events];
-    const idx = updated.findIndex((ev) => ev.name.toLowerCase() === targetName.toLowerCase());
-    if (idx >= 0) {
-      const rounds = [
-        ...updated[idx].rounds,
-        { round: updated[idx].rounds.length + 1, start: newStart, end: newEnd || newStart },
-      ].sort((a, b) => a.start.localeCompare(b.start));
-      updated[idx] = { ...updated[idx], rounds };
-    } else {
-      updated.unshift({
-        name: targetName,
-        rounds: [{ round: 1, start: newStart, end: newEnd || newStart }],
-      });
-    }
-    setEvents(updated);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-    setShowAddForm(false);
-    setCustomName('');
-  }
-
-  function handleReset() {
-    localStorage.removeItem(STORAGE_KEY);
-    setEvents(EVENT_HISTORY);
-  }
-
   return (
     <div className="space-y-6">
       {/* Hero Banner */}
@@ -202,22 +185,50 @@ export function DashboardEvents() {
             </p>
           </div>
 
-          <div className="flex flex-wrap gap-2">
-            <button
-              onClick={() => setShowAddForm((v) => !v)}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-semibold text-sm transition cursor-pointer"
-            >
-              <Plus className="w-4 h-4" />
-              Ghi nhận đợt mới
-            </button>
-            <button
-              onClick={handleReset}
-              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 text-sm transition cursor-pointer"
-              title="Khôi phục dữ liệu gốc từ Google Sheet"
-            >
-              <RotateCcw className="w-4 h-4" />
-              <span className="hidden sm:inline">Gốc</span>
-            </button>
+          <div className="flex flex-col items-start sm:items-end gap-1.5">
+            {getConfiguredApiUrl() ? (
+              <button
+                onClick={onRefreshSync}
+                disabled={syncing || syncCooldownSec > 0}
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 text-emerald-300 text-xs sm:text-sm font-medium transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <RefreshCw className={`w-4 h-4 ${syncing ? 'animate-spin' : ''}`} />
+                <span>
+                  {syncing
+                    ? 'Đang đồng bộ...'
+                    : syncCooldownSec > 0
+                    ? `Đợi ${syncCooldownSec}s`
+                    : 'Đồng bộ Sheet'}
+                </span>
+              </button>
+            ) : (
+              <button
+                onClick={onOpenSyncModal}
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-sky-500/15 hover:bg-sky-500/25 border border-sky-500/30 text-sky-300 text-xs sm:text-sm font-medium transition cursor-pointer"
+              >
+                <Cloud className="w-4 h-4" />
+                <span>Kết nối Sheet</span>
+              </button>
+            )}
+            <div className="text-[11px] text-slate-400 flex flex-col sm:items-end gap-0.5">
+              <span className="flex items-center gap-1">
+                <Clock className="w-3 h-3 text-slate-500" />
+                {lastSyncedAt
+                  ? `Cập nhật: ${new Date(lastSyncedAt).toLocaleString('vi-VN', {
+                      hour: '2-digit',
+                      minute: '2-digit',
+                      day: '2-digit',
+                      month: '2-digit',
+                      year: 'numeric',
+                    })}`
+                  : 'Chưa đồng bộ'}
+              </span>
+              {nextAutoSyncLabel && (
+                <span className="text-[10px] text-slate-500">
+                  Tự động (mỗi 2h từ 04:00 UTC+7): kế tiếp {nextAutoSyncLabel}
+                </span>
+              )}
+            </div>
           </div>
         </div>
 
@@ -241,80 +252,6 @@ export function DashboardEvents() {
           </div>
         </div>
       </div>
-
-      {/* Add Round Form */}
-      {showAddForm && (
-        <form
-          onSubmit={handleAddRound}
-          className="rounded-2xl border border-amber-500/30 bg-[#141a27] p-4 sm:p-5 space-y-4"
-        >
-          <div className="font-semibold text-amber-300 text-sm">
-            Thêm đợt sự kiện mới (lưu trên trình duyệt này)
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
-            <div className="sm:col-span-2">
-              <label className="block text-xs text-slate-400 mb-1">Tên sự kiện</label>
-              <select
-                value={newName}
-                onChange={(e) => setNewName(e.target.value)}
-                className="w-full rounded-xl bg-[#0b0e14] border border-white/15 px-3 py-2 text-sm text-white"
-              >
-                {events.map((ev) => (
-                  <option key={ev.name} value={ev.name}>
-                    {ev.name}
-                  </option>
-                ))}
-                <option value="__custom__">+ Nhập sự kiện mới...</option>
-              </select>
-              {newName === '__custom__' && (
-                <input
-                  type="text"
-                  placeholder="Tên sự kiện mới..."
-                  value={customName}
-                  onChange={(e) => setCustomName(e.target.value)}
-                  className="mt-2 w-full rounded-xl bg-[#0b0e14] border border-white/15 px-3 py-2 text-sm text-white"
-                  required
-                />
-              )}
-            </div>
-            <div>
-              <label className="block text-xs text-slate-400 mb-1">Ngày bắt đầu</label>
-              <input
-                type="date"
-                value={newStart}
-                onChange={(e) => setNewStart(e.target.value)}
-                className="w-full rounded-xl bg-[#0b0e14] border border-white/15 px-3 py-2 text-sm text-white"
-                required
-              />
-            </div>
-            <div>
-              <label className="block text-xs text-slate-400 mb-1">Ngày kết thúc</label>
-              <input
-                type="date"
-                value={newEnd}
-                onChange={(e) => setNewEnd(e.target.value)}
-                className="w-full rounded-xl bg-[#0b0e14] border border-white/15 px-3 py-2 text-sm text-white"
-                required
-              />
-            </div>
-          </div>
-          <div className="flex justify-end gap-2">
-            <button
-              type="button"
-              onClick={() => setShowAddForm(false)}
-              className="px-3.5 py-2 rounded-xl bg-white/5 text-slate-300 text-sm cursor-pointer"
-            >
-              Hủy
-            </button>
-            <button
-              type="submit"
-              className="px-4 py-2 rounded-xl bg-amber-500 text-slate-950 font-semibold text-sm cursor-pointer"
-            >
-              Lưu đợt sự kiện
-            </button>
-          </div>
-        </form>
-      )}
 
       {/* Main 2-column grid on desktop */}
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">

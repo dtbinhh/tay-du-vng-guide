@@ -150,6 +150,11 @@ export const EVENT_HISTORY: TrackedEvent[] = [
         "round": 1,
         "start": "2026-06-26",
         "end": "2026-07-01"
+      },
+      {
+        "round": 2,
+        "start": "2026-11-28",
+        "end": "2026-12-02"
       }
     ]
   },
@@ -1309,6 +1314,61 @@ export const EV_SINH_NHAT_IMAGES = [
   { file: '/images/image12.jpg', title: 'Ev Sinh Nhật - Bảng 2' },
   { file: '/images/image17.jpg', title: 'Ev Sinh Nhật - Bảng 3' },
 ];
+
+export interface HoanTuPack {
+  lb: number;
+  tickets: number;
+  defaultQty: number;
+}
+
+export interface HoanTuKimTieuConfig {
+  anhDang: {
+    freeTickets: number;
+    pack98Lb: number;
+    pack98Tickets: number;
+  };
+  quaKimTieu: {
+    daysTickets: number;
+    bonus5DaysTickets: number;
+    dauDo: number;
+    totalLb: number;
+  };
+  tamVi: {
+    caNhanTickets: number;
+    caNhanManh: string;
+    tongMonTickets: number;
+    tongMonManh: string;
+  };
+  baoThiPacks: HoanTuPack[];
+}
+
+export const HOAN_TU_KIM_TIEU_DATA: HoanTuKimTieuConfig = {
+  anhDang: {
+    freeTickets: 30,
+    pack98Lb: 98,
+    pack98Tickets: 80,
+  },
+  quaKimTieu: {
+    daysTickets: 15,
+    bonus5DaysTickets: 5,
+    dauDo: 15,
+    totalLb: 30,
+  },
+  tamVi: {
+    caNhanTickets: 32,
+    caNhanManh: '15 mảnh kim năm tỵ',
+    tongMonTickets: 42,
+    tongMonManh: '25 mảnh kim năm tỵ',
+  },
+  baoThiPacks: [
+    { lb: 6, tickets: 5, defaultQty: 1 },
+    { lb: 30, tickets: 20, defaultQty: 1 },
+    { lb: 98, tickets: 50, defaultQty: 2 },
+    { lb: 198, tickets: 80, defaultQty: 3 },
+    { lb: 328, tickets: 120, defaultQty: 3 },
+    { lb: 648, tickets: 200, defaultQty: 0 },
+  ],
+};
 
 export const MANH_HA_HOAN_TRA = [
   { moc: 0, xuDienVi: 0, xuPhuongLuu: 0 },

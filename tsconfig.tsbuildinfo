@@ -1,1 +1,1 @@
-{"root":["./src/app.tsx","./src/main.tsx","./src/components/dashboardevents.tsx","./src/components/eventcalculators.tsx","./src/components/heroupgrades.tsx","./src/components/lightbox.tsx","./src/data/gamedata.ts"],"version":"5.8.3"}
+{"root":["./src/app.tsx","./src/main.tsx","./src/vite-env.d.ts","./src/components/dashboardevents.tsx","./src/components/eventcalculators.tsx","./src/components/heroupgrades.tsx","./src/components/lightbox.tsx","./src/data/gamedata.ts","./src/services/sheetsync.ts"],"version":"5.8.3"}
