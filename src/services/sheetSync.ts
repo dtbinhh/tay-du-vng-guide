@@ -95,11 +95,28 @@ export function saveAdminPin(pin: string) {
   }
 }
 
+function normalizeHoanTu(raw?: Partial<HoanTuKimTieuConfig> | null): HoanTuKimTieuConfig {
+  if (!raw) return HOAN_TU_KIM_TIEU_DATA;
+  return {
+    anhDang: { ...HOAN_TU_KIM_TIEU_DATA.anhDang, ...(raw.anhDang || {}) },
+    quaKimTieu: { ...HOAN_TU_KIM_TIEU_DATA.quaKimTieu, ...(raw.quaKimTieu || {}) },
+    tamVi: { ...HOAN_TU_KIM_TIEU_DATA.tamVi, ...(raw.tamVi || {}) },
+    baoThiPacks:
+      Array.isArray(raw.baoThiPacks) && raw.baoThiPacks.length > 0
+        ? raw.baoThiPacks
+        : HOAN_TU_KIM_TIEU_DATA.baoThiPacks,
+  };
+}
+
 export function loadCachedSync(): SyncedPayload | null {
   try {
     const raw = localStorage.getItem(CACHE_KEY);
     if (!raw) return null;
-    return JSON.parse(raw) as SyncedPayload;
+    const parsed = JSON.parse(raw) as SyncedPayload;
+    return {
+      ...parsed,
+      hoanTuKimTieu: normalizeHoanTu(parsed.hoanTuKimTieu),
+    };
   } catch {
     return null;
   }
@@ -207,17 +224,7 @@ export async function fetchSheetSync(
   const payload: SyncedPayload = {
     updatedAt: data.updatedAt || new Date().toISOString(),
     events: Array.isArray(data.events) && data.events.length > 0 ? data.events : EVENT_HISTORY,
-    hoanTuKimTieu: data.hoanTuKimTieu
-      ? {
-          anhDang: data.hoanTuKimTieu.anhDang || HOAN_TU_KIM_TIEU_DATA.anhDang,
-          quaKimTieu: data.hoanTuKimTieu.quaKimTieu || HOAN_TU_KIM_TIEU_DATA.quaKimTieu,
-          tamVi: data.hoanTuKimTieu.tamVi || HOAN_TU_KIM_TIEU_DATA.tamVi,
-          baoThiPacks:
-            data.hoanTuKimTieu.baoThiPacks?.length
-              ? data.hoanTuKimTieu.baoThiPacks
-              : HOAN_TU_KIM_TIEU_DATA.baoThiPacks,
-        }
-      : HOAN_TU_KIM_TIEU_DATA,
+    hoanTuKimTieu: normalizeHoanTu(data.hoanTuKimTieu),
   };
   try {
     localStorage.setItem(CACHE_KEY, JSON.stringify(payload));

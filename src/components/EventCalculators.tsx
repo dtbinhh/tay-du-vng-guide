@@ -54,7 +54,18 @@ export function EventCalculators({
   onOpenImage,
   syncedHoanTu,
 }: EventCalculatorsProps) {
-  const htConfig = syncedHoanTu || HOAN_TU_KIM_TIEU_DATA;
+  const htConfig = useMemo<HoanTuKimTieuConfig>(
+    () => ({
+      anhDang: { ...HOAN_TU_KIM_TIEU_DATA.anhDang, ...(syncedHoanTu?.anhDang || {}) },
+      quaKimTieu: { ...HOAN_TU_KIM_TIEU_DATA.quaKimTieu, ...(syncedHoanTu?.quaKimTieu || {}) },
+      tamVi: { ...HOAN_TU_KIM_TIEU_DATA.tamVi, ...(syncedHoanTu?.tamVi || {}) },
+      baoThiPacks:
+        Array.isArray(syncedHoanTu?.baoThiPacks) && syncedHoanTu.baoThiPacks.length > 0
+          ? syncedHoanTu.baoThiPacks
+          : HOAN_TU_KIM_TIEU_DATA.baoThiPacks,
+    }),
+    [syncedHoanTu]
+  );
 
   // Hoan Tu Kim Tieu state
   const [htIncludeFree, setHtIncludeFree] = useState(true);
